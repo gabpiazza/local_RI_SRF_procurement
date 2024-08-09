@@ -24,38 +24,14 @@
 
 #1.1 Install/Load packages ---------------------------------------------------
 
-ttt
-testing_changestt
+
 # i_am("scripts/01_dataprep.R")
 options(scipen = 999)
 need<- c("devtools", "remotes", "kbal", "stringi","foreign","haven","sf","eeptools","data.table","readxl" ,"tjbal", "Hmisc", "skimr", "tabulator", "easycsv", "janitor", "tidyverse")
 have <- need %in% rownames(installed.packages()) # check packages you have
 if(any(!have)) install.packages(need[!have]) # install missing packages
 invisible(lapply(need, library, character.only=T)) # load needed packages
-`%notin%` <- Negate(`%in%`)
-# require("devtools")
-# install.packages("remotes")
-# install.packages("kbal")
-# install.packages("stringi")
-# install.packages("eeptools")
-# devtools::install_github("chadhazlett/KBAL")
-# remotes::install_github("xuyiqing/tjbal")
-# install.packages("Hmisc")
-# install.packages("skimr")
-# install.packages("tabulator")
-# packages <- c("easycsv", "janitor", "tidyverse")
-# library(easycsv)
-# library(janitor)
-# library(eeptools)
-# library(stringi)
-# library(foreign)
-# library(haven)
-# library(sf)
-# library(readxl)
-# library(data.table)
-# setwd(here())
-# `%notin%` <- Negate(`%in%`)
-# Load data ---------------------------------------------------------------
+
 
 
 # 1.2 Setting directories------------------------------------------------
@@ -65,16 +41,28 @@ data_proc_dir<- "/Users/gabrielepiazza/Dropbox/PhD/Local_RI_SRF_procurement/Anal
 asia_data_dir<- paste0(data_raw_dir, "ASIA_data/")
 asia_data_2004_11_dir<- paste0(asia_data_dir, "2004-2011/csv/")
 asia_data_2012_18_dir<- paste0(asia_data_dir, "2012-2018/")
-
-
-## Load Employees data ---------------------------------------------------
+comuni_north_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/Comuni/comuni_lookup.csv"
+census_2011_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/census_2011_comuni/all_comuni_selected.csv"
+cern_suppliers_dir<- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/CERN_suppliers/suppliers_italy_city.csv"
+# 1.3 Create functions ---------------------------------------------------
 load_csv <- function(file_path) {
   library(data.table)
   fread(file_path, encoding = "Latin-1")
 }
 
+`%notin%` <- Negate(`%in%`)
+loadcsv_multi <- function(data_dir, extension="csv"){
+  file_list <- list.files(path = data_dir, pattern = paste0("\\.", extension, "$"), full.names = TRUE)
+  dfs <- lapply(file_list, function(x) fread(x, encoding = "Latin-1"))
+  combined_df <- rbindlist(dfs)
+  return(combined_df)
+}
 
-# 1.3 Loading data------------------------------------------------
+readsubfolder <- function (f){attempt <- fread(f)}
+# 1.4 Loading data------------------------------------------------
+
+## 1.41 Addetti ----------------------------------------------------------
+
 
 for (year in 2004:2011) {
   file_path <- paste0(asia_data_2004_11_dir,"addetti_", year, ".csv")
@@ -85,141 +73,106 @@ for (year in 2004:2011) {
   assign(paste0("addetti_", year), df, envir = .GlobalEnv)
 }
 
-# # data_dir<- "ASIA_data/2004-2012"
-# test<- loadcsv_multi(asia_data_2004_12_dir, extension ="both") # this loads all the csv files and save them separately 
-# dfs <- Filter(function(x) is(x, "data.frame"), mget(ls())) # get a list of all the dataframes in the global environment
-
-# Loop through the years 2004 to 2011
-
-for (year in 2004:2011) {
-  file_path <- here(data_ASIA, paste0("addetti_", year, ".csv"))
-  df <- load_csv(file_path)
-  df <- clean_names(df)
-  
-  # Assign the cleaned data frame to a variable in the global environment
-  assign(paste0("addetti_", year), df, envir = .GlobalEnv)
-}
+addetti_2012_2018 <- loadcsv_multi(asia_data_2012_18_dir, extension = "csv")
 
 
-### Load 2004-2006 ------------------------------------------------------------
+## 1.42 Comuni ----------------------------------------------------------
+
+comuni_north <- load_csv(comuni_north_dir)
+
+## 1.43 Census ----------------------------------------------------------
+
+census_2011<- load_csv(census_2011_dir)
+
+## 1.44 CERN suppliers ----------------------------------------------------------
+
+cern_suppliers<- load_csv(cern_suppliers_dir)
+
+## 1.45 Wage data ----------------------------------------------------------
+
+folder_files<- list.files(recursive = T, full.names= T,pattern = "\\.csv$",paste0(data_raw_dir, "irpef_data/"))
+
+files_folder_extraction<- sapply(folder_files, readsubfolder, simplify = F)
+list2env(files_folder_extraction,envir=.GlobalEnv)
+selected_columns<- c("Anno di imposta", "Denominazione Comune", "Reddito da lavoro dipendente - Frequenza","Reddito da lavoro dipendente - Ammontare in euro" )
+names(files_folder_extraction) <- paste0("income_", seq(from = 2000, to = 2018, by = 1)) # rename the different dataframes
+files_folder_extraction[[7]]<- files_folder_extraction[[7]] %>% rename(`Reddito da lavoro dipendente - Ammontare in euro` = `Reddito da lavoro dipendente  - Ammontare in euro`,
+                                                                       `Reddito da lavoro dipendente - Frequenza`= `Reddito da lavoro dipendente  - Frequenza`)  # change variable names to make it consistent
+files_folder_extraction[[9]]<- files_folder_extraction[[9]] %>% rename(`Reddito da lavoro dipendente e assimilati - Ammontare` = `Reddito da lavoro dipendente e assimilati - Ammontare in euro`)
+
+income_2000_07 <- files_folder_extraction[1:8] # extract the first 8 years - same variable names
+income_2008_14 <- files_folder_extraction[9:15] # extract 2008-14 years - same variable names
+income_2015_18 <- files_folder_extraction[16:19] # rest of years - similar case 
+
+
+# 2.Cleaning the data------------------------------------------------
+
+##2.1 Addetti ------------------------------------------------------------
+
+#### 2004-2011 -----------------------------------------------------------
 
 
 
-
-addetti_2004<- load_csv(here(data_ASIA,"addetti_2004.csv"))
-addetti_2004<- clean_names(addetti_2004)
-addetti_2005<- load_csv(here(data_ASIA, "addetti_2005.csv"))
-addetti_2005<-clean_names(addetti_2005)
-addetti_2005<- addetti_2005 %>% rename(codice_provincia =codice)
-addetti_2006<- load_csv(here(data_ASIA, "addetti_2006.csv"))
-addetti_2006<-clean_names(addetti_2006)
+addetti_2005<- addetti_2005 %>% 
+  rename(codice_provincia = codice)
 addetti_2006$year <- 2006 # the year variable was missing
 addetti_2004<- addetti_2004 %>% select(c(names(addetti_2006)))
 addetti_2005<- addetti_2005 %>% select(c(names(addetti_2006)))
-addetti_2004_2006<-list(addetti_2004, addetti_2005, addetti_2006) # put them together into one list
-addetti_2004_2006<-lapply(addetti_2004_2006, clean_names) # names in a nice format
-addetti_2004_2006<-rbindlist(addetti_2004_2006, fill=T) # put all the datasets together
-addetti_2004_2006<- addetti_2004_2006 %>% select(-codice_provincia, -codice_comune) %>% 
-  mutate_at(c(2:15), as.numeric)# some columns are charachater
-addetti_2004_2006<- addetti_2004_2006 %>% rename(mining= c, manufacturing =d, electricity_gas_water = e, construction = f,
-                                                 wholesale_retail = g, hotels_restaurant= h, transport = i,
-                                                 finance = j, business_activities= k, education = m, health_social=n) %>% select(-o) # I have to do this as there was a change in the codes from 2002 to 2007
+addetti_2004_2006 <- list(addetti_2004, addetti_2005, addetti_2006) %>%
+  rbindlist(fill = TRUE) %>%
+  select(-codice_provincia, -codice_comune) %>%
+  mutate_at(2:15, as.numeric) %>% 
+  rename(mining= c, manufacturing =d, electricity_gas_water = e, construction = f,
+         wholesale_retail = g, hotels_restaurant= h, transport = i,
+         finance = j, business_activities= k, education = m, health_social=n) %>% select(-o) # I have to do this as there was a change in the codes from 2002 to 2007
+# I have to do this as there was a change in the codes from 2002 to 2007
 
-# The issue here is that they use different definitions. I have used the classification from this website https://www.businessballs.com/glossaries-and-terminology/industrial-classifications-uk-sic-codes/ this refers to the UK SIC code but it should be the same as the Italian one
+# The issue here is that they use different definitions. 
+#I have used the classification from this website https://www.businessballs.com/glossaries-and-terminology/industrial-classifications-uk-sic-codes/ this refers to the UK SIC code but it should be the same as the Italian one
 
-### Load 2007-2011 ------------------------------------------------------------
 
-# This version is cleaner but I am still working - use for now from 109 onwards
-#combine_data <- function(path, years) {
-  #dfs <- lapply(years, function(yr) {
-   # file <- paste0("addetti_", yr, ".csv")
-   # df <- fread(file.path(path, file))
-    #df <- clean_names(df)
-   # df$year <- yr
-   # if (yr == 2009) {
-   #   df <- df %>% rename(denominazione_comune = denominazione)
-   # } else if (yr == 2011) {
-   #   df <- df %>% rename(denominazione_comune = v3)
-  #  }
-  #  df %>% select(names(addetti_2007))
- # })
- # combined <- rbindlist(dfs)
- # combined <- combined %>% select(-codice_provincia, -codice_comune) %>% mutate_at(c(2:19), decomma) %>% mutate_at(c(2:19), as.numeric)
- # combined <- combined %>% rename(mining= b, manufacturing = c, hotels_restaurant=i, transport= h, finance= k, education = p, health_social= q,
-   #                            #   construction = f, wholesale_retail = g) %>% mutate(electricity_gas_water= d+e, business_activities = j+l+m+n)
- # return(combined)
-#}
-#data_path <- here("data_raw","ASIA_data", "2004-2012","csv")
-#years <- c(2007, 2008, 2009, 2010, 2011)
-#addetti_2007_2011 <- combine_data(data_path, years)
 
-addetti_2007<- load_csv(here(data_ASIA, "addetti_2007.csv"))
-addetti_2007<- clean_names(addetti_2007)
-addetti_2007$year<- 2007
-addetti_2008<- load_csv(here(data_ASIA,"addetti_2008.csv"))
-addetti_2008<-clean_names(addetti_2008)
-addetti_2008$year<- 2008
-addetti_2008<- addetti_2008 %>% select(c(names(addetti_2007)))
-addetti_2009<- load_csv(here(data_ASIA, "addetti_2009.csv"))
-addetti_2009<-clean_names(addetti_2009)
-addetti_2009<- addetti_2009 %>% rename(denominazione_comune = denominazione)
-addetti_2009$year<- 2009
-addetti_2009<- addetti_2009 %>% select(c(names(addetti_2007)))
-addetti_2010<- load_csv(here(data_ASIA, "addetti_2010.csv"))
-addetti_2010<-clean_names(addetti_2010)
-addetti_2010$year<- 2010
-addetti_2010<- addetti_2010 %>% select(c(names(addetti_2007)))
-addetti_2011<- load_csv(here(data_ASIA, "addetti_2011.csv"))
-addetti_2011<-clean_names(addetti_2011)
-addetti_2011<- addetti_2011 %>% rename(denominazione_comune = v3)
-addetti_2011$year<- 2011
-addetti_2011<- addetti_2011 %>% select(c(names(addetti_2007)))
+list_2007_2011<- c("addetti_2007", "addetti_2008","addetti_2009", "addetti_2010", "addetti_2011")
+#add year to the dataset 
+years<- 2007:2011
+for (i in seq_along(list_2007_2011)) {
+  df <- get(list_2007_2011[i])  # Get the dataframe by name
+  df$year <- years[i]  # Add the year column
+  assign(list_2007_2011[i], df)  # Reassign the modified dataframe back to its original name
+}
+addetti_2009<- addetti_2009 %>% 
+  rename(denominazione_comune = denominazione)
+addetti_2011<- addetti_2011 %>% 
+  rename(denominazione_comune = v3)
+addetti_2008_2011<- c("addetti_2008", "addetti_2009", "addetti_2010", "addetti_2011")
 
+for (name in addetti_2008_2011){
+  df <- get(name) # get the dataframes by name
+  df <- df %>% select(c(names(addetti_2007)))#select columns based on 2007
+  assign(name, df)
+}
 addetti_2007_2011<- list(addetti_2007, addetti_2008, addetti_2009, addetti_2010, addetti_2011) # create a list
-addetti_2007_2011<-rbindlist(addetti_2007_2011) # bind them together
-addetti_2007_2011<- addetti_2007_2011 %>% select(-codice_provincia, -codice_comune) %>% mutate_at(c(2:19), decomma) # the values with thousands had commas and this make it harder 
-addetti_2007_2011<- addetti_2007_2011 %>% mutate_at(c(2:19), as.numeric)# some columns are character
-addetti_2007_2011<- addetti_2007_2011 %>% rename(mining= b, manufacturing = c, hotels_restaurant=i, transport= h, finance= k, education = p, health_social= q,
-                                                 construction = f, wholesale_retail = g)#chage the names of the variable so that they match those for 2004-2008
-addetti_2007_2011 <- addetti_2007_2011 %>% mutate(electricity_gas_water= d+e, business_activities = j+l+m+n) # same as above
+addetti_2007_2011<-rbindlist(addetti_2007_2011) %>%  # bind them together
+  select(-codice_provincia, -codice_comune) %>% mutate_at(c(2:19), decomma) %>%  # the values with thousands had commas and this make it harder 
+  mutate_at(c(2:19), as.numeric) %>% # some columns are character
+  rename(mining= b, manufacturing = c, hotels_restaurant=i, transport= h, finance= k, education = p, health_social= q,
+                                                 construction = f, wholesale_retail = g) %>% #chage the names of the variable so that they match those for 2004-2008
+  mutate(electricity_gas_water= d+e, business_activities = j+l+m+n) # same as above
 
 ## Bind 2004-2011 
 addetti_2007_2011<- addetti_2007_2011 %>% select(c(names(addetti_2004_2006)))
 
-addetti_2004_2011<-rbind(addetti_2004_2006, addetti_2007_2011)
-addetti_2004_2011<- addetti_2004_2011 %>% select(-mining)
+addetti_2004_2011<-rbind(addetti_2004_2006, addetti_2007_2011)%>%
+  select(-mining)
 
 
-### Load 2012-2018 ------------------------------------------------------------
+### 2012-2018 ------------------------------------------------------------
 #to load the files, you should do the same as above using fread
-
-data_dir<- here("data_raw", "ASIA_data","2012-2018")
-loadcsv_multi(data_dir, extension ="both") # this loads all the csv files and save them separately 
-dfs <- Filter(function(x) is(x, "data.frame"), mget(ls())) # get a list of all the dataframes in the global environment
-
-library(data.table)
-
-load_csv <- function(file_path) {
-  fread(file_path, encoding = "Latin-1")
-}
-
-data_dir <- here("data_raw", "ASIA_data", "2012-2018")
-
-# Function to load multiple CSV files and save them separately
-
-loadcsv_multi <- function(data_dir, extension="csv"){
-  file_list <- list.files(path = data_dir, pattern = paste0("\\.", extension, "$"), full.names = TRUE)
-  dfs <- lapply(file_list, function(x) fread(x, encoding = "Latin-1"))
-  combined_df <- rbindlist(dfs)
-  return(combined_df)
-}
-
-addetti_2012_2018 <- loadcsv_multi(data_dir, extension = "csv")
-addetti_2012_2018<- addetti_2012_2018 %>% rename(codice_comune= code, denominazione_comune= territorio, totale="10" )
-addetti_2012_2018<- clean_names(addetti_2012_2018)
-addetti_2012_2018<- addetti_2012_2018 %>% rename(manufacturing = c, hotels_restaurant=i, transport= h, finance= k, education = p, health_social= q, construction = f, wholesale_retail = g)
-addetti_2012_2018 <- addetti_2012_2018 %>% mutate(electricity_gas_water= d+e, business_activities = j+l+m+n)
-addetti_2012_2018<- addetti_2012_2018 %>% select(c(names(addetti_2004_2011)))
+addetti_2012_2018<- addetti_2012_2018 %>% rename(codice_comune= code, denominazione_comune= territorio, totale="10" ) %>% 
+  clean_names %>% 
+  rename(manufacturing = c, hotels_restaurant=i, transport= h, finance= k, education = p, health_social= q, construction = f, wholesale_retail = g) %>% 
+  mutate(electricity_gas_water= d+e, business_activities = j+l+m+n) %>% 
+  select(c(names(addetti_2004_2011)))
 
 ### Create the 2004-2017 panel -------------------------------------------
 
@@ -232,10 +185,9 @@ addetti_2004_2018$denominazione_comune<- stri_trans_general(str= addetti_2004_20
 addetti_2004_2018<- addetti_2004_2018 %>% rename(municipality = denominazione_comune)
 
 
-# Addetti north 
-# Load lookup for North 
+## 2.2 Comuni North --------------------------------------------------------
 
-comuni_north <- load_csv(here("data_raw","Comuni", "comuni_lookup.csv"))
+
 colnames(comuni_north)<- c("municipality", "area", "region")
 comuni_north$municipality<- str_to_upper(comuni_north$municipality)
 comuni_north <-as.data.frame(comuni_north)
@@ -243,82 +195,28 @@ comuni_north <-as.data.frame(comuni_north)
 comuni_north$municipality<- iconv(comuni_north$municipality, from = "UTF-8", to = "ASCII//TRANSLIT")
 comuni_north$municipality <- gsub("`", "", comuni_north$municipality)
 addetti_north <- left_join(addetti_2004_2018, comuni_north)
-addetti_north<- addetti_north %>% drop_na(area)
-schio<- addetti_north %>% filter(municipality=="SCHIO")
+# addetti_north<- addetti_north %>% drop_na(area)
+schio<- addetti_north %>% filter(municipality=="SCHIO") # This is not necessary
 counting_obs <- addetti_north %>% group_by(municipality) %>% tally ()
 addetti_north<- left_join(addetti_north, counting_obs)
 addetti_north <- addetti_north %>% filter(n>13)
-addetti_north_full<- addetti_north %>% select( -totale, -area)
-#addetti_north_full<-addetti_north_full %>% drop_na()
 
-# Upload CENSUS data for 2011
-census_2011<- load_csv(here("data_raw","census_2011_comuni","all_comuni_selected.csv"))
+
+##2.3 Census -------------------------------------------------------------
 census_2011<- clean_names(census_2011)
 census_2011<- census_2011 %>% rename (year = anno_cp, municipality= city)
 census_2011$municipality<- str_to_upper(census_2011$municipality)
 census_2011$municipality <- stri_trans_general(str= census_2011$municipality, id="Latin-ASCII")
 
 
-#Upload CERN data
-cern_data <- fread(here("data_raw","census_2011_comuni","suppliers_italy_city.csv"))
-cern_data <- cern_data %>% rename(cern_procurement = total_CHF, year= order_date, municipality = city)
-cern_data_2004 <- cern_data %>% filter(year>2003)
-
-# Get all the data together
-
-northern_municipalities <- left_join(addetti_north_full, census_2011, by=c("municipality")) %>% rename(year = year.x)
-northern_municipalities<- left_join(northern_municipalities, cern_data_2004, by= c("municipality", "year"))
-northern_municipalities<- northern_municipalities %>% drop_na(pop_2011)
-northern_municipalities <- northern_municipalities %>% drop_na (emploment_rate_2011)
-list_full_cities <- unique(northern_municipalities$municipality)
-northern_municipalities_full<- northern_municipalities %>% filter(municipality %in% list_full_cities)
-write.csv(northern_municipalities_full,here("data_proc", "northern_municipalities_all.csv"))
 
 
-#keep all the mid-size cities
-mid_size_northern_municipalities <- northern_municipalities_full %>% filter(pop_2011>10000)
-mid_size_northern_municipalities<- mid_size_northern_municipalities %>% filter(pop_2011<100000)
-medium_cities<- mid_size_northern_municipalities$municipality
+##2.4 CERN data ---------------------------------------------------------
 
+cern_suppliers <- cern_suppliers %>% rename(cern_procurement = total_CHF, year= order_date, municipality = city) %>%
+  filter(year>2003)
 
-mid_size_northern_municipalities<- northern_municipalities_full %>% filter(municipality %in% medium_cities)
-mid_size_northern_municipalities<- unique(mid_size_northern_municipalities)
-write.csv(mid_size_northern_municipalities,here("data_proc", "mid_size_northern_municipalities.csv"))
-
-
-# I am a bit worried that the treatment effect could be a result of subsequent CERN contract.
-# For this reason I exclude all the cities with no contracts post 2012. I then look at all the cities that had a contract between 10 million and 100,000 Swiss franc
-# over this period. This decision is a bit arbitrary.  
-
-cern_comuni<- mid_size_northern_municipalities %>% filter(year>2010, cern_procurement>0)# this filters all the comunis that have received a contract post 2011
-cern_comuni <- cern_comuni %>% 
-  group_by(municipality) %>% 
-  summarise(cern_procurement = sum(cern_procurement))
-
-cern_comuni<- cern_comuni %>% 
-  filter(cern_procurement<10000000, cern_procurement>100000)# I do this because Schio received a small contract during this period. 
-cern_municipalities<- cern_comuni$municipality # this gives me  a list of cities 
-north_panel_final<-mid_size_northern_municipalities %>% filter(municipality %notin% cern_municipalities)
-
-### Wage data ---------------------------------------------------------------
-
-folder_files<- list.files(recursive = T, full.names= T,pattern = "\\.csv$",here("data_raw", "irpef_data"))
-readsubfolder <- function (f){attempt <- fread(f)}
-files_folder_extraction<- sapply(folder_files, readsubfolder, simplify = F)
-list2env(files_folder_extraction,envir=.GlobalEnv)
-selected_columns<- c("Anno di imposta", "Denominazione Comune", "Reddito da lavoro dipendente - Frequenza","Reddito da lavoro dipendente - Ammontare in euro" )
-
-
-#Clean income data 
-names(files_folder_extraction) <- paste0("income_", seq(from = 2000, to = 2018, by = 1)) # rename the different dataframes
-files_folder_extraction[[7]]<- files_folder_extraction[[7]] %>% rename(`Reddito da lavoro dipendente - Ammontare in euro` = `Reddito da lavoro dipendente  - Ammontare in euro`,
-                                       `Reddito da lavoro dipendente - Frequenza`= `Reddito da lavoro dipendente  - Frequenza`)  # change variable names to make it consistent
-files_folder_extraction[[9]]<- files_folder_extraction[[9]] %>% rename(`Reddito da lavoro dipendente e assimilati - Ammontare` = `Reddito da lavoro dipendente e assimilati - Ammontare in euro`)
-                      
-income_2000_07 <- files_folder_extraction[1:8] # extract the first 8 years - same variable names
-income_2008_14 <- files_folder_extraction[9:15] # extract 2008-14 years - same variable names
-income_2015_18 <- files_folder_extraction[16:19] # rest of years - similar case 
-
+##2.5 Wage data ---------------------------------------------------------
 income_2000_07 <- lapply(income_2000_07, function(df) {
   df_select <- df %>%
     select(1:12) %>% 
@@ -352,12 +250,73 @@ income_2015_18 <- do.call(rbind, income_2015_18)
 wage_data_2000_2018<- rbind(income_2000_07, income_2008_14, income_2015_18)
 colnames(wage_data_2000_2018)<- c("year", "municipality", "average_employee_income")
 wage_data_2000_2018$municipality <- gsub("'", "", wage_data_2000_2018$municipality)
-write.csv(wage_data_2000_2018, here("data_proc", "wage_data_2000_2018.csv"))
+write.csv(wage_data_2000_2018, paste0(data_proc_dir,"wage_data/", "wage_data_2000_2018.csv"))
+# 3. Preparing the data for the analysis ----------------------------------
+
+
+##3.1 Getting the data together ------------------------------------------
+
+northern_municipalities <- left_join(addetti_north, census_2011, by =c("municipality")) %>% 
+  rename(year = year.x)
+northern_municipalities<- left_join(northern_municipalities, cern_suppliers, by = c("municipality", "year"))
+northern_municipalities<- northern_municipalities %>% drop_na(pop_2011, emploment_rate_2011)
+list_full_cities<- unique(northern_municipalities$municipality)
+northern_municipalities_full<- northern_municipalities %>% filter(municipality %in% list_full_cities)
+write.csv(northern_municipalities_full, )
+# Get all the data together
+
+northern_municipalities <- left_join(addetti_north_full, census_2011, by=c("municipality")) %>% rename(year = year.x)
+northern_municipalities<- left_join(northern_municipalities, cern_suppliers, by= c("municipality", "year"))
+northern_municipalities<- northern_municipalities %>% drop_na(pop_2011)
+northern_municipalities <- northern_municipalities %>% drop_na (emploment_rate_2011)
+list_full_cities <- unique(northern_municipalities$municipality)
+northern_municipalities_full<- northern_municipalities %>% filter(municipality %in% list_full_cities)
+write.csv(northern_municipalities_full,paste0(data_proc_dir,"municipalities/" ,"northern_municipalities_all.csv"))
+
+##3.2 Further data cleaning------------------------------------------
+
+###3.21 Keep only mid-size cities------------------------------------------
+
+mid_size_northern_municipalities <- northern_municipalities_full %>% filter(pop_2011>10000)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% filter(pop_2011<100000)
+medium_cities<- mid_size_northern_municipalities$municipality
+
+
+mid_size_northern_municipalities<- northern_municipalities_full %>% filter(municipality %in% medium_cities)
+mid_size_northern_municipalities<- distinct(mid_size_northern_municipalities)
+write.csv(mid_size_northern_municipalities,paste0(data_proc_dir,"municipalities/" ,"mid_size_northern_municipalities.csv"))
+
+###3.22 Drop NAs------------------------------------------
+
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% select(-V1)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% drop_na(manufacturing, business_activities, education, health_social, 
+                                                                                pop_2011, pop_2001_2011, electricity_gas_water, high_skilled_share, pop_density_2011,
+                                                                                young_pop_degree_share) %>% select(-V1)
+mid_size_northern_municipalities[is.na(mid_size_northern_municipalities)]<-0
+
+
+###3.23 Keep only cities that have not received CERN procurement ------------------------------------------
+
+# I am a bit worried that the treatment effect could be a result of subsequent CERN contract.
+# For this reason I exclude all the cities with no contracts post 2012. I then look at all the cities that had a contract between 10 million and 100,000 Swiss franc
+# over this period. This decision is a bit arbitrary.  
+
+cern_comuni<- mid_size_northern_municipalities %>% filter(year>2010, cern_procurement>0)# this filters all the comunis that have received a contract post 2011
+cern_comuni <- cern_comuni %>% 
+  group_by(municipality) %>% 
+  summarise(cern_procurement = sum(cern_procurement))
+
+cern_comuni<- cern_comuni %>% 
+  filter(cern_procurement<10000000, cern_procurement>100000)# I do this because Schio received a small contract during this period. 
+cern_municipalities<- cern_comuni$municipality # this gives me  a list of cities 
+north_panel_final<-mid_size_northern_municipalities %>% filter(municipality %notin% cern_comuni)
+
+
+
 
 
 # Prepare the data for analysis -------------------------------------------
-
-#mid_size_northern_municipalities<- mid_size_northern_municipalities %>% select(-V1)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% select(-V1)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% drop_na(manufacturing, business_activities, education, health_social, 
                                                                                 pop_2011, pop_2001_2011, electricity_gas_water, high_skilled_share, pop_density_2011,
                                                                                 young_pop_degree_share) %>% select(-V1)

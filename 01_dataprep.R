@@ -301,41 +301,21 @@ mid_size_northern_municipalities[is.na(mid_size_northern_municipalities)]<-0
 # For this reason I exclude all the cities with no contracts post 2012. I then look at all the cities that had a contract between 10 million and 100,000 Swiss franc
 # over this period. This decision is a bit arbitrary.  
 
-cern_comuni<- mid_size_northern_municipalities %>% filter(year>2010, cern_procurement>0)# this filters all the comunis that have received a contract post 2011
-cern_comuni <- cern_comuni %>% 
-  group_by(municipality) %>% 
-  summarise(cern_procurement = sum(cern_procurement))
-
-cern_comuni<- cern_comuni %>% 
-  filter(cern_procurement<10000000, cern_procurement>100000)# I do this because Schio received a small contract during this period. 
-cern_municipalities<- cern_comuni$municipality # this gives me  a list of cities 
-north_panel_final<-mid_size_northern_municipalities %>% filter(municipality %notin% cern_comuni)
-
-
-
-
-
-# Prepare the data for analysis -------------------------------------------
-mid_size_northern_municipalities<- mid_size_northern_municipalities %>% select(-V1)
-mid_size_northern_municipalities<- mid_size_northern_municipalities %>% drop_na(manufacturing, business_activities, education, health_social, 
-                                                                                pop_2011, pop_2001_2011, electricity_gas_water, high_skilled_share, pop_density_2011,
-                                                                                young_pop_degree_share) %>% select(-V1)
-mid_size_northern_municipalities[is.na(mid_size_northern_municipalities)]<-0
-
-
-#### Remove the municipalities that have received large CERN order --------
-
-
 
 mid_size_northern_municipalities_no_cern <- mid_size_northern_municipalities %>%dplyr::select(municipality, year, cern_procurement, region) %>% dplyr::filter(year >2009)
 mid_size_cern<- mid_size_northern_municipalities_no_cern %>% dplyr::group_by(municipality) %>% 
-mutate(total_cern = sum(cern_procurement)) %>% 
-filter(municipality != "SCHIO") %>% 
-filter(total_cern>1000000) 
+  mutate(total_cern = sum(cern_procurement)) %>% 
+  filter(municipality != "SCHIO") %>% 
+  filter(total_cern>1000000) 
 cern_cities <- unique(mid_size_cern$municipality)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   filter(municipality %notin% cern_cities)
-#filter(municipality %notin% c("CHIVASSO","GRUGLIASCO", "LEINI","RIVALTA DI TORINO","RIVOLI","BUSTO ARSIZIO", "CERNUSCO SUL NAVIGLIO","CASTEL D'AZZANO","TORRI DI QUARTESOLO","VIGONZA","SCANDIANO","CALDERARA DI RENO", "SANREMO"))# SANREMO HAS no data on wages
+
+
+
+
+
+
 
 
 #### Remove the municipalities that are much larger/smaller than  --------
@@ -345,7 +325,7 @@ population_threshold<- mid_size_northern_municipalities %>% dplyr::filter(year==
 population_threshold<- population_threshold %>% filter(municipality=="SCHIO") %>% 
   select(pop_2011)
 
-#population_threshold#39131
+#population_threshold #39131 - Schio
 
 population_cities <- subset(mid_size_northern_municipalities, pop_2011>= 0.5 *39131 & pop_2011<=1.5*39131)
 population_cities<- population_cities %>% select(municipality) %>% unique()

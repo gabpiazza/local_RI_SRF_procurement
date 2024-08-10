@@ -227,14 +227,20 @@ turnover_sector_city_supply<- turnover_sector_city_supply %>% mutate(average_tur
 
 turnover_sector_city_supply_2004<- turnover_sector_city_supply %>% filter(year >2003) %>% select(city, year, two_digit, average_turnover_2020)
 turnover_sector_city_supply_2004<- turnover_sector_city_supply_2004 %>% mutate(log_average_turnover_2020 = log(average_turnover_2020))
-
+cities_list<- turnover_sector_city_supply_2004 %>% select(city) %>% distinct() %>% pull(city)
+cities_list<- unique(cities_list)
 
 
 #I do this select those sectors that using the OECD 
 # the website is here https://stats.oecd.org/Index.aspx?DataSetCode=IOTS_2021#
 
 # From long to wide
+turnover_sector_city_supply_2004 <- turnover_sector_city_supply_2004 %>%
+  rename(log_average_turnover = log_average_turnover_2020) %>% 
+  select(city, year, two_digit, log_average_turnover) %>%
+  pivot_wider(names_from = two_digit, values_from = log_average_turnover, names_prefix = "_")
 
+### I need to keep only those that have values for 25
 ### 25
 
 turnover_sector_city_supply_2004_25<- turnover_sector_city_supply_2004 %>% 

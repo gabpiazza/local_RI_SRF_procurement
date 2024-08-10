@@ -1,9 +1,9 @@
 # Info --------------------------------------------------------------------
 ##
-##Script name: 01_dataprep
+##Script name: 01_dataprep_A
 ##
 ##Purpose of script: Preparing the data for the paper "Where the God Particles touches the ground - The local economic impact of RI procurement " 
-##
+## This creates the northern municipalities 
 ##Author: Gabriele Piazza
 ##
 ##Date Created: 2023-02-20
@@ -25,7 +25,7 @@
 #1.1 Install/Load packages ---------------------------------------------------
 
 
-# i_am("scripts/01_dataprep.R")
+
 options(scipen = 999)
 need<- c("devtools", "remotes", "kbal", "stringi","foreign","haven","sf","eeptools","data.table","readxl" ,"tjbal", "Hmisc", "skimr", "tabulator", "easycsv", "janitor", "tidyverse")
 have <- need %in% rownames(installed.packages()) # check packages you have
@@ -42,8 +42,12 @@ asia_data_dir<- paste0(data_raw_dir, "ASIA_data/")
 asia_data_2004_11_dir<- paste0(asia_data_dir, "2004-2011/csv/")
 asia_data_2012_18_dir<- paste0(asia_data_dir, "2012-2018/")
 comuni_north_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/Comuni/comuni_lookup.csv"
+north_panel_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/Comuni/north_panel_final.csv"
 census_2011_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/census_2011_comuni/all_comuni_selected.csv"
 cern_suppliers_dir<- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/CERN_suppliers/suppliers_italy_city.csv"
+sll_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_proc/SLL/sll_2011.csv"
+  
+  
 # 1.3 Create functions ---------------------------------------------------
 load_csv <- function(file_path) {
   library(data.table)
@@ -104,6 +108,13 @@ income_2000_07 <- files_folder_extraction[1:8] # extract the first 8 years - sam
 income_2008_14 <- files_folder_extraction[9:15] # extract 2008-14 years - same variable names
 income_2015_18 <- files_folder_extraction[16:19] # rest of years - similar case 
 
+## 1.46 SLL ----------------------------------------------------------
+
+sll <- fread(sll_dir)
+
+## 1.47 North panel ----------------------------------------------------------
+
+north_panel <- read_csv(paste0(data_raw_dir, "Comuni/","north_panel_final.csv"))### I have to find out how I got this
 
 # 2.Cleaning the data------------------------------------------------
 
@@ -251,6 +262,27 @@ wage_data_2000_2018<- rbind(income_2000_07, income_2008_14, income_2015_18)
 colnames(wage_data_2000_2018)<- c("year", "municipality", "average_employee_income")
 wage_data_2000_2018$municipality <- gsub("'", "", wage_data_2000_2018$municipality)
 write.csv(wage_data_2000_2018, paste0(data_proc_dir,"wage_data/", "wage_data_2000_2018.csv"))
+
+##2.5 SLL data ---------------------------------------------------------
+
+sll<- clean_names(sll)
+sll<- sll %>% rename (city = comune_2011) %>% dplyr::select(-pop_2011) 
+sll$city <- stri_trans_general(str= sll$city, id="Latin-ASCII") # this gets rid of all the accents
+sll_region_lookup <- sll %>% select(city, den_sll_2011) # select only the variables of interest
+write_csv(sll_region_lookup, here("data_proc", "sll_region_lookup.csv"))
+
+
+##2.6 North Panel  ---------------------------------------------------------
+
+city_region <-north_panel %>% select(city, region) %>% distinct()# select only the variables from city region
+sll_region_lookup <- left_join(sll_region_lookup, city_region)
+sll_region_lookup<- sll_region_lookup %>% drop_na()
+sll_region_lookup <-sll_region_lookup %>% unique()
+
+sll_region_lookup<- sll_region_lookup %>% select(den_sll_2011, region, city)
+sll_region_lookup<- sll_region_lookup %>% distinct()
+write_csv(sll_region_lookup, paste0(data_proc_dir,"SLL/", "sll_region_lookup.csv"))
+
 # 3. Preparing the data for the analysis ----------------------------------
 
 
@@ -275,7 +307,8 @@ write.csv(northern_municipalities_full,paste0(data_proc_dir,"municipalities/" ,"
 
 ##3.2 Further data cleaning------------------------------------------
 
-###3.21 Keep only mid-size cities------------------------------------------
+###3.21 Keep only mid-size cities------------------------------------------ 
+#this might be unnecessary as I am doing this later on in 3.24
 
 mid_size_northern_municipalities <- northern_municipalities_full %>% filter(pop_2011>10000)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% filter(pop_2011<100000)
@@ -312,51 +345,25 @@ mid_size_northern_municipalities<- mid_size_northern_municipalities %>%
   filter(municipality %notin% cern_cities)
 
 
+###3.24 Remove the municipalities that are more than 50% larger or smaller than Schio ------------------------------------------
 
-
-
-
-
-
-#### Remove the municipalities that are much larger/smaller than  --------
-
-
-population_threshold<- mid_size_northern_municipalities %>% dplyr::filter(year==2011)
-population_threshold<- population_threshold %>% filter(municipality=="SCHIO") %>% 
-  select(pop_2011)
-
+population_threshold<- mid_size_northern_municipalities %>% dplyr::filter(year==2011, municipality =="SCHIO") %>% 
+  pull(pop_2011)
 #population_threshold #39131 - Schio
-
-population_cities <- subset(mid_size_northern_municipalities, pop_2011>= 0.5 *39131 & pop_2011<=1.5*39131)
-population_cities<- population_cities %>% select(municipality) %>% unique()
+population_cities <- subset(mid_size_northern_municipalities, pop_2011>= 0.5 *population_threshold & pop_2011<=1.5*population_threshold)
+population_cities<- population_cities %>% select(municipality) %>% distinct()
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% filter(municipality %in% population_cities$municipality)
 
-# Create the tradable and non tradable variables
+###3.25 Remove the municipalities that are in Schio's local labour market ------------------------------------------
 
-mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
-  mutate(tradable = manufacturing + finance + business_activities + electricity_gas_water,
-  non_tradable = construction + wholesale_retail + transport, #+ education + health_social,
-  log_manufacturing = log(manufacturing),
-  log_tradable= log(tradable),
-  log_non_tradable = log(non_tradable))
 
-mid_size_northern_municipalities_wage <- left_join(mid_size_northern_municipalities, wage_data_2000_2018) %>% 
-  filter(municipality != "SANREMO") %>% drop_na(average_employee_income)
-
-# There has been a big road development in 2017 and I don't want to capture this
+#There has been a big road development in 2017 and I don't want to capture this
 #Load SSL lookup
-sll <- fread(here("data_proc" ,"sll_2011.csv"))
-sll<- clean_names(sll)
-sll<- sll %>% rename (city = comune_2011) %>% dplyr::select(-pop_2011) 
-sll$city <- stri_trans_general(str= sll$city, id="Latin-ASCII") # this gets rid of all the accents
-sll_region_lookup <- sll %>% select(city, den_sll_2011) # select only the variables of interest
-write_csv(sll_region_lookup, here("data_proc", "sll_region_lookup.csv"))
-north_panel <- read_csv(here("data_proc", "north_panel_final.csv"))### I have to find out how I got this 
 
 city_region <-north_panel %>% select(city, region) %>% unique()# select only the variables from city region
 sll_region_lookup <- left_join(sll_region_lookup, city_region)
 sll_region_lookup<- sll_region_lookup %>% drop_na()
-sll_region_lookup <-sll_region_lookup %>% unique()
+sll_region_lookup <-sll_region_lookup %>% distinct()
 
 sll_region_lookup<- sll_region_lookup %>% select(den_sll_2011, region, city)
 sll_region_lookup<- sll_region_lookup %>% unique()
@@ -365,9 +372,27 @@ no_schio_sll<- schio_sll %>% filter(city !="SCHIO") %>% rename(municipality= cit
 no_schio_sll<- no_schio_sll$municipality
 
 # Before starting with the estimation, I want to exclude all the municipalities that are neighbouring Schio to avoid spillover effects
- mid_size_northern_municipalities_wage<- mid_size_northern_municipalities_wage %>% filter(!municipality %in% no_schio_sll)
+ mid_size_northern_municipalities<- mid_size_northern_municipalities %>% filter(!municipality %in% no_schio_sll)
 
-### Create file here 
+ 
+###3.26 Merge with wage data ------------------------------------------
+
+mid_size_northern_municipalities_wage <- left_join(mid_size_northern_municipalities, wage_data_2000_2018) %>% 
+   filter(municipality != "SANREMO") %>% drop_na(average_employee_income)
+ 
+##3.3 Create new variables ------------------------------------------
+###3.31 Create the tradable and non tradable variables ------------------------------------------
+ 
+ mid_size_northern_municipalities_wage<- mid_size_northern_municipalities_wage %>% 
+   mutate(tradable = manufacturing + finance + business_activities + electricity_gas_water,
+          non_tradable = construction + wholesale_retail + transport, #+ education + health_social,
+          log_manufacturing = log(manufacturing),
+          log_tradable= log(tradable),
+          log_non_tradable = log(non_tradable))
+ 
+
+ 
+ ###3.33 Create treatment variables ------------------------------------------
  
 
  #2012 treatment 
@@ -380,17 +405,15 @@ mid_size_northern_municipalities_wage<- mid_size_northern_municipalities_wage %>
 
 mid_size_northern_municipalities_wage<- mid_size_northern_municipalities_wage %>% drop_na(average_employee_income)
 mid_size_northern_municipalities_2004_17 <- mid_size_northern_municipalities_wage %>% filter(year<2018) 
-mid_size_northern_municipalities_2004_17<- unique(mid_size_northern_municipalities_2004_17)
 counting_obs <- mid_size_northern_municipalities_2004_17 %>% group_by(municipality) %>% tally ()
 full_list_cities <- counting_obs %>% filter(n==14)
 
 mid_size_northern_municipalities_2004_17<- mid_size_northern_municipalities_2004_17 %>% 
-  filter(municipality %in% full_list_cities$municipality) %>% 
-  select(-year.y,-n, -region )
+  filter(municipality %in% full_list_cities$municipality) 
 
-mid_size_northern_municipalities_2004_17<- unique(mid_size_northern_municipalities_2004_17)
 
-write.csv(mid_size_northern_municipalities_2004_17, here("data_proc", "mid_size_northern_municipalities.csv"))
+
+write.csv(mid_size_northern_municipalities_2004_17, paste0(data_proc_dir,"municipalities/", "mid_size_northern_municipalities.csv"))
 
 #Load orbis data and joining the data---------------------------------------------------------------
 

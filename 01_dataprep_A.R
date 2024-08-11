@@ -22,7 +22,7 @@
 
 
 
-#1.1 Install/Load packages ---------------------------------------------------
+##1.1 Install/Load packages ---------------------------------------------------
 
 
 
@@ -34,7 +34,7 @@ invisible(lapply(need, library, character.only=T)) # load needed packages
 
 
 
-# 1.2 Setting directories------------------------------------------------
+##1.2 Setting directories------------------------------------------------
 
 data_raw_dir<- "/Users/gabrielepiazza/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/"
 data_proc_dir<- "/Users/gabrielepiazza/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_proc/"
@@ -48,7 +48,7 @@ cern_suppliers_dir<- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_raw/C
 sll_dir <- "~/Dropbox/PhD/Local_RI_SRF_procurement/Analysis/data_proc/SLL/sll_2011.csv"
   
   
-# 1.3 Create functions ---------------------------------------------------
+##1.3 Create functions ---------------------------------------------------
 load_csv <- function(file_path) {
   library(data.table)
   fread(file_path, encoding = "Latin-1")
@@ -63,9 +63,9 @@ loadcsv_multi <- function(data_dir, extension="csv"){
 }
 
 readsubfolder <- function (f){attempt <- fread(f)}
-# 1.4 Loading data------------------------------------------------
+##1.4 Loading data------------------------------------------------
 
-## 1.41 Addetti ----------------------------------------------------------
+###1.41 Addetti ----------------------------------------------------------
 
 
 for (year in 2004:2011) {
@@ -80,19 +80,19 @@ for (year in 2004:2011) {
 addetti_2012_2018 <- loadcsv_multi(asia_data_2012_18_dir, extension = "csv")
 
 
-## 1.42 Comuni ----------------------------------------------------------
+###1.42 Comuni ----------------------------------------------------------
 
 comuni_north <- load_csv(comuni_north_dir)
 
-## 1.43 Census ----------------------------------------------------------
+###1.43 Census ----------------------------------------------------------
 
 census_2011<- load_csv(census_2011_dir)
 
-## 1.44 CERN suppliers ----------------------------------------------------------
+###1.44 CERN suppliers ----------------------------------------------------------
 
 cern_suppliers<- load_csv(cern_suppliers_dir)
 
-## 1.45 Wage data ----------------------------------------------------------
+###1.45 Wage data ----------------------------------------------------------
 
 folder_files<- list.files(recursive = T, full.names= T,pattern = "\\.csv$",paste0(data_raw_dir, "irpef_data/"))
 
@@ -108,11 +108,11 @@ income_2000_07 <- files_folder_extraction[1:8] # extract the first 8 years - sam
 income_2008_14 <- files_folder_extraction[9:15] # extract 2008-14 years - same variable names
 income_2015_18 <- files_folder_extraction[16:19] # rest of years - similar case 
 
-## 1.46 SLL ----------------------------------------------------------
+###1.46 SLL ----------------------------------------------------------
 
 sll <- fread(sll_dir)
 
-## 1.47 North panel ----------------------------------------------------------
+###1.47 North panel ----------------------------------------------------------
 
 north_panel <- read_csv(paste0(data_raw_dir, "Comuni/","north_panel_final.csv"))### I have to find out how I got this
 
@@ -411,394 +411,11 @@ full_list_cities <- counting_obs %>% filter(n==14)
 mid_size_northern_municipalities_2004_17<- mid_size_northern_municipalities_2004_17 %>% 
   filter(municipality %in% full_list_cities$municipality) 
 
+##3.4 Save File------------------------------------------
 
 
 write.csv(mid_size_northern_municipalities_2004_17, paste0(data_proc_dir,"municipalities/", "mid_size_northern_municipalities.csv"))
 
-#Load orbis data and joining the data---------------------------------------------------------------
-
-# Load data
-
-italy_address_v <- read_dta(here("data_raw","ORBIS","Address IT.dta")) # load the addresses
-colnames(italy_address_v)<- c("bvd_id_number", "postcode", "city", "city_native") #change the column names 
-italy_address_v <- italy_address_v %>% mutate(check = city == city_native)# this is not necessary - it just checks whether the city and city native variables are the same.
-italy_address_v <- italy_address_v %>% filter(city !="None")
-italy_gdp_deflator_2020<- read_csv(here("data_raw", "GDP_deflator", "Italy_GDP_deflated_2020.csv"))
-italy_gdp_deflator_2020<- clean_names(italy_gdp_deflator_2020)
-
-#it_sales <- read_dta("~/Dropbox/PhD/procurement_cern/data/raw/ORBIS_FINANCIALS/Fin IT.dta")
-# Load the NACE data. it was initially in STATA 15 and issues with the haven package
-italy_nace <- read.csv(here("data_raw","ORBIS", "NACE IT.csv"))
-italy_nace <- italy_nace %>% rename(bvd_id_number = bvdidnumber)
-
-# Load the Orbis data
-it_orbis <- read_dta(here("data_raw", "ORBIS", "Gabriele IT.dta"))
-# Load postocodes
-#it_postcodes <- read_csv("~/Dropbox/PhD/procurement_cern/data/raw/listacomuni 2.csv")
-#it_postcodes<- clean_names(it_postcodes)
-#it_postcodes<- it_postcodes %>% rename(postcode= cap) %>% select(postcode, comune)
-
-# Joining the different datasets together 
-it_orbis_address<- left_join(it_orbis, italy_address_v)
-it_orbis_address <- it_orbis_address %>% select(bvd_id_number,city,consolidation_code, filing_type,  number_of_employees, operating_revenue_turnover_, p_l_before_tax, p_l_after_tax,
-                                                ebitda, postcode, closing_date)
-
-
-rm(italy_address_v, it_orbis) # I remove the file as I don't have much space
-#it_orbis_address_postcode<- left_join(it_orbis_address, it_postcodes) # Match with the postcodes
-it_orbis_address <- it_orbis_address %>% filter(!is.na(postcode)) %>% select(-number_of_employees,-p_l_before_tax, p_l_after_tax) # I get rid of some variables and drop those without postcodes
-
-italy_nace <- italy_nace %>% select(bvd_id_number, nacerev2primarycodes) %>% filter(!is.na(nacerev2primarycodes))
-#rm(it_orbis, italy_address_v)# Already removed
-it_orbis_address_nace <- left_join(it_orbis_address, italy_nace) # Join with the NACE code
-rm(italy_nace) # remove the italy_nace
-rm(it_orbis_address) # remove the it orbis address to get more space
-#rm(it_orbis_address_postcode)
-it_orbis_address_nace<- it_orbis_address_nace %>% mutate(two_digit = floor(nacerev2primarycodes/100)) # I do this to get better codes
-it_orbis_address_nace <- it_orbis_address_nace %>% filter(!is.na(operating_revenue_turnover_))
-it_orbis_address_nace_nona <- it_orbis_address_nace%>% drop_na(closing_date)
-rm(it_orbis_address_nace)
-
-# Assign the date following Kalemli-Ozcan et al.  -------------------------
-
-it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% 
-  mutate(closing_date_format = str_remove(closing_date, "T00:00:00.000Z"),
-         closing_date_format = as.Date(closing_date_format)) 
-
-it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% 
-  mutate(year_orbis = year(closing_date_format))
-
-it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% 
-  mutate(month_orbis = month(closing_date_format))
-
-#We re-construct the YEAR variable based on the following convention. 
-#If the closing date is after or on June 1st, the current year is assigned (if CLOSEDATE is 4th of August, 2003, the year is 2003). Otherwise, 
-#the previous year is assigned (if CLOSEDATE is 25th of May, 2003, the year is 2002)
-
-it_orbis_address_nace_nona$year[it_orbis_address_nace_nona$month_orbis<6]<-it_orbis_address_nace_nona$year_orbis -1
-it_orbis_address_nace_nona$year[it_orbis_address_nace_nona$month_orbis>5]<-it_orbis_address_nace_nona$year_orbis
-#it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% select(-comune)
-it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% distinct()
-it_orbis_address_nace_nona<- it_orbis_address_nace_nona %>% filter(!is.na(city))
-it_orbis_address_nace_nona <- it_orbis_address_nace_nona%>% drop_na(closing_date)
-it_orbis_address_nace_nona_2018 <- it_orbis_address_nace_nona %>% 
-  filter(year >2000 & year <2020)
-rm(it_orbis_address_nace_nona)
-
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% select(-nacerev2primarycodes) %>% distinct()
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% distinct(bvd_id_number, year, consolidation_code, operating_revenue_turnover_, .keep_all = TRUE)
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% group_by(bvd_id_number, year) %>% mutate(number_of_filings = n()) %>% ungroup()
-it_orbis_address_nace_nona_2018$consolidation_l <- substr(it_orbis_address_nace_nona_2018$consolidation_code,1,1)
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% filter(number_of_filings==1 | consolidation_l=="C") %>% select(-number_of_filings)
-
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% group_by(bvd_id_number, year) %>% 
-  mutate(number_of_filings= n()) %>% 
-  ungroup %>% filter(number_of_filings ==1 | consolidation_l =="U") %>% 
-  select(-number_of_filings)
-
-it_orbis_address_nace_nona_2018<- it_orbis_address_nace_nona_2018 %>% group_by(bvd_id_number, year_orbis) %>% 
-  mutate(number_of_filings= n()) %>% 
-  ungroup %>% filter(number_of_filings ==1 | filing_type =="Annual report")
-
-
-
-it_orbis_address_nace_nona_2018<-it_orbis_address_nace_nona_2018 %>% group_by(bvd_id_number, year, city, consolidation_l) %>% 
-  mutate(max_turnover = max(operating_revenue_turnover_)) %>%
-  ungroup()
-
-it_orbis_address_nace_nona_2018 <- it_orbis_address_nace_nona_2018 %>% 
-  mutate(city = case_when(
-    city == "62 Concesio" ~ "Concesio",
-    city == "47 Levada Ponte di Piave" ~ "Levada Ponte di Piave",
-    city == "(Iio Entrata Via Faggiana) Latina" ~ "Latina",
-    city == "(Ingresso Anche Da Via Hermada 6) Genova" ~ "Genova",
-    city == "(Secondo Ingr. Via Santi 1) Medesano" ~ "Medesano",
-    city == "00 Treviso" ~ "Treviso",
-    city == "20 Gorle" ~ "Gorle",
-    city == "28 Bologna" ~ "Bologna",
-    city == "43 Castiglione Delle Stiviere" ~ "Castiglione Delle Stiviere",
-    city == "47levada Ponte Di Piave" ~ "Levada Ponte Di Piave",
-    city == "77 Roma" ~ "Roma",
-    city == "80 Prevalle" ~ "Prevalle",
-    city == "92025 Casteltermini" ~ "Casteltermini",
-    city == "A Roma" ~ "Roma",
-    TRUE ~ city
-  ))
-
-
-
-
-
-
-
-it_orbis_2018<- it_orbis_address_nace_nona_2018 %>% distinct( max_turnover,.keep_all = TRUE)
-
-# Check whether you have a high number of bvd_ids with more observations per year
-
-
-
-check<- it_orbis_2018 %>% group_by (bvd_id_number, year, city, consolidation_code) %>% count()
-check_duplicates<- check %>% filter(n>1)# 0 this is a good sign
-
-
-# Summarize the data ------------------------------------------------------
-
-#ebitda_sector_city <- it_orbis_address_nace %>% 
-#group_by(comune, two_digit, year) %>% 
-#summarize(average_ebitda = mean(ebitda))
-
-turnover_sector_city<- it_orbis_address_nace_nona_2018 %>% group_by(city, two_digit, year) %>% 
-  summarize(average_turnover= mean(max_turnover))
-turnover_sector_city<- turnover_sector_city %>% filter(city != "")
-
-turnover_sector_city_supply <- turnover_sector_city %>% filter(two_digit %in% c(25, 45, 69,72,28))
-turnover_sector_city_supply<- left_join(turnover_sector_city_supply, italy_gdp_deflator_2020)
-turnover_sector_city_supply<- turnover_sector_city_supply %>% mutate(average_turnover_2020 = (average_turnover/prices_2020)*100)
-
-turnover_sector_city_supply_2004<- turnover_sector_city_supply %>% filter(year >2003) %>% select(city, year, two_digit, average_turnover_2020)
-turnover_sector_city_supply_2004<- turnover_sector_city_supply_2004 %>% mutate(log_average_turnover_2020 = log(average_turnover_2020))
-
-
-
-#I do this select those sectors that using the OECD 
-# the website is here https://stats.oecd.org/Index.aspx?DataSetCode=IOTS_2021#
-
-# From long to wide
-
-### 25
-
-turnover_sector_city_supply_2004_25<- turnover_sector_city_supply_2004 %>% 
-  filter(two_digit=='25') %>% 
-  filter(city !="")
-
-
-turnover_supply_wide_25<- turnover_sector_city_supply_2004_25 %>% 
-  select(-log_average_turnover_2020) %>% 
-  pivot_wider(names_from = two_digit, values_from = average_turnover_2020) 
-
-
-turnover_supply_wide_25<- turnover_supply_wide_25 %>% drop_na() %>% 
-  filter(year<2018)
-
-turnover_supply_wide_number_25<- turnover_supply_wide_25 %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
-  ungroup() %>% 
-  filter(n>13)
-
-list_cities<- unique(turnover_supply_wide_number_25$city)
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_25 %>% filter(city %in% list_cities)
-
-
-turnover_supply_wide_2004_2017_25$city<- toupper(turnover_supply_wide_2004_2017_25$city)
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_2004_2017_25 %>% 
-  rename(municipality= city)
-
-## 28
-turnover_sector_city_supply_2004_28<- turnover_sector_city_supply_2004 %>% 
-  filter(two_digit=='28') %>% 
-  filter(city !="")
-
-turnover_supply_wide_28<- turnover_sector_city_supply_2004_28 %>%
-  select(-log_average_turnover_2020) %>% 
-  pivot_wider(names_from = two_digit, values_from = average_turnover_2020)  
-
-turnover_supply_wide_28<- turnover_supply_wide_28 %>% drop_na() %>% 
-  filter(year<2018)
-
-turnover_supply_wide_number_28<- turnover_supply_wide_28 %>% group_by(city) %>% count() %>% 
-  ungroup() %>% 
-  filter(n>13)
-
-list_cities<- unique(turnover_supply_wide_number_28$city)
-turnover_supply_wide_2004_2017_28<- turnover_supply_wide_28 %>% filter(city %in% list_cities)
-
-
-turnover_supply_wide_2004_2017_28$city<- toupper(turnover_supply_wide_2004_2017_28$city)
-
-
-## Write the data ----------------------------------------------------------
-
-write.csv(turnover_supply_wide_2004_2017_25, here("data_proc", "turnover_25_2004_17.csv"))
-write.csv(turnover_supply_wide_2004_2017_28, here("data_proc", "turnover_28_2004_17.csv"))
-
-turnover_supply_wide_2004_2017_25<- read_csv(here("data_proc", "turnover_25_2004_17.csv"))
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_2004_2017_25 %>% 
-  select(-'...1')
-mid_size_northern_municipalities_2004_17<- read_csv(here("data_proc", "mid_size_northern_municipalities.csv")) 
-mid_size_northern_municipalities_orbis <- left_join(mid_size_northern_municipalities_2004_17, turnover_supply_wide_2004_2017_25) %>% drop_na()
-write.csv(mid_size_northern_municipalities_orbis, here("data_proc", "mid_size_northern_municipalities_orbis.csv"))
-
-# ### Create data for the spillover analysis  -----------------------------
-
-northern_municipalities_spillover<- read_csv(here("data_proc", "northern_municipalities_all.csv")) %>% select(-n)
-northern_municipalities_spillover_no_cern <- northern_municipalities_spillover %>%
-  select(municipality, year, cern_procurement, region) %>%
-  filter(year >2009)
-
-northern_cern<- northern_municipalities_spillover_no_cern %>% group_by(municipality) %>% 
-  mutate(total_cern = sum(cern_procurement)) %>% 
-  filter(municipality != "SCHIO") %>% 
-  filter(total_cern>1000000) 
-
-cern_cities <- unique(northern_cern$municipality)
-northern_municipalities_spillover<- northern_municipalities_spillover %>% filter(year<2018)
-
-#Load Sistemi Locali del Lavoro lookup
-sll<- read_csv(here("data_proc", "sll_region_lookup.csv"))
-sll<- clean_names(sll)
-sll$city <- stringi::stri_trans_general(str= sll$city, id="Latin-ASCII") # this gets rid of all the accents
-sll_region_lookup <- sll %>% select(city, den_sll_2011) # select only the variables 
-sll_region_lookup<- sll_region_lookup %>% drop_na()
-sll_region_lookup <-sll_region_lookup %>% unique()
-sll_region_lookup<- sll_region_lookup %>% rename(ttwa_2011= den_sll_2011)
-
-sll_region_lookup<- sll_region_lookup %>% select(ttwa_2011,city)
-sll_region_lookup<- sll_region_lookup %>% unique()
-schio_sll <- sll_region_lookup %>% filter(ttwa_2011== "SCHIO")
-
-counting_obs <- northern_municipalities_spillover %>% group_by(municipality) %>% tally ()
-
-full_list_cities <- counting_obs %>% filter(n==14)
-northern_municipalities_spillover<- northern_municipalities_spillover %>% filter(municipality %in% full_list_cities$municipality)
-sll_region_lookup<- sll_region_lookup %>% rename(municipality = city)
-northern_municipalities_spillover<- left_join(northern_municipalities_spillover,sll_region_lookup)
-#mid_size_northern_municipalities_wage_spillover<- dplyr::left_join(mid_size_northern_municipalities_wage_spillover,sll_region_lookup)
-
-
-# Consumption sectors
-northern_municipalities_spillover<- northern_municipalities_spillover %>% 
-  mutate(log_consumption = log(construction + hotels_restaurant+0.000001), 
-         manufacturing = replace_na(manufacturing, 0), 
-         health_social = replace_na(health_social,0),
-         education = replace_na(education,0), 
-         wholesale_retail = replace_na(wholesale_retail, 0),
-         transport = replace_na(transport, 0),
-         hotels_restaurant = replace_na(hotels_restaurant,0),
-         construction = replace_na(construction, 0))
-
-
-northern_municipalities_spillover<- northern_municipalities_spillover %>% 
-  mutate(log_non_tradable = log(wholesale_retail+ hotels_restaurant +education + health_social+
-                                  transport + construction+0.0000000000000001 ))
-
-
-
-    
-# Construction 
-
-northern_municipalities_spillover<- northern_municipalities_spillover %>% 
-  mutate(log_construction = log(construction))
-
-
-northern_municipalities_spillover<- northern_municipalities_spillover %>% 
-  mutate(manufacturing = manufacturing +0.001,
-         log_manufacturing = log(manufacturing))
-
-
-
-#I first remove all the municipalities that have received a CERN procurement contract
-
-northern_municipalities_spillover_no_cern<- subset(northern_municipalities_spillover,!(municipality %in% cern_cities))
-
-
-
-
-###  Assign treatment to 2012 ----------------------------------------
-
-#2012 treatment 
-northern_municipalities_spillover_no_cern<- northern_municipalities_spillover_no_cern %>% mutate(treat_2012 = case_when(ttwa_2011 =="SCHIO" & year>2012 ~ 1, year<2013 & ttwa_2011 =="SCHIO"~ 0,
-                                                                                                      municipality!="SCHIO"~0))# This creates a treatment variable
-
-
-northern_municipalities_spillover_no_cern <- northern_municipalities_spillover_no_cern %>% filter(municipality !="SCHIO")
-northern_municipalities_spillover_no_cern<- northern_municipalities_spillover_no_cern %>% select(-region) %>%  distinct_all()
-
-write.csv(northern_municipalities_spillover_no_cern, here("data_proc", "northern_municipalities_spillover.csv"))
-
-
-# ### Schio_bordering_municipalities --------------------------------------
-
-
-italy<- st_read(here("data_raw","LAU_RG_01M_2020_4326.shp", "LAU_RG_01M_2020_4326.shp"))
-italy<- italy   %>% filter(CNTR_CODE == "IT")
-plot(st_geometry(italy))
-
-borders<- st_intersects(italy, italy)
-namesof = lapply(borders, function(n){italy$LAU_NAME[n]})
-id_of =lapply(borders,function(n){italy$LAU_ID[n]})
-schio_neighbours<-as.vector(namesof[2984])
-
-schio_neighbours<- schio_neighbours[[1]]
-schio_neighbours<- str_to_upper(schio_neighbours)
-schio_boundaries<- italy %>% filter(LAU_NAME=="Schio")
-
-# Create the dataset for the neighbouring  municipalities as treated 
-`%notin%` <- Negate(`%in%`)
-northern_municipalities_2012_neighbours <- northern_municipalities_spillover_no_cern %>% mutate(treat_neighbours = case_when(municipality %in% schio_neighbours & year>2012 ~ 1, year<2013 & municipality %in% schio_neighbours~ 0,
-                                                                                                                 municipality %notin% schio_neighbours~0))
-northern_municipalities_2012_neighbours<- northern_municipalities_2012_neighbours %>% filter(municipality!="SCHIO")
-write_csv(northern_municipalities_2012_neighbours, here("data_proc", "northern_municipalities_bordering.csv"))
-
-# ###SLL data -------------------------------------------------------------
-
-ttwa_grouped <- read_excel(here("data_proc", "ttwa_grouped_2012.xls")) %>% select(-treat) %>% 
-  mutate(log_manufacturing = log(manufacturing))
-
-
-
-
-pop_data_sll_2011<- fread(here("data_raw","SLL", "SLL2011_CENPOP2011.csv"))
-pop_data_sll_2011<- clean_names(pop_data_sll_2011)
-pop_data_sll_2011<- pop_data_sll_2011 %>% filter(popolazione_residente_totale != "P1")
-#SELECT THE COLUMNS that I want to keep numeric
-sll_names <- pop_data_sll_2011 %>% select(codice_del_sll_2011, denominazione_del_sll_2011)
-pop_data_sll_2011<- pop_data_sll_2011 %>% mutate_all(~as.numeric(str_remove_all(as.character(.x), '\\.')))
-pop_data_sll_2011<- pop_data_sll_2011 %>% select(-denominazione_del_sll_2011, -codice_del_sll_2011)
-pop_data_sll_2011<- cbind(sll_names, pop_data_sll_2011)
-pop_data_sll_2011<- pop_data_sll_2011%>%
-  mutate(year= 2011) %>% 
-  rename(ttwa_2011 = denominazione_del_sll_2011)
-
-colnames(pop_data_sll_2011) <- paste0(colnames(pop_data_sll_2011),"_2011")
-
-pop_data_sll_2011<- pop_data_sll_2011 %>% 
-  rename(ttwa_2011= ttwa_2011_2011) %>% 
-  select(-codice_del_sll_2011_2011)
-
-ttwa_grouped_pop <- left_join(ttwa_grouped, pop_data_sll_2011) %>% 
-  mutate_if(is.numeric, ~replace(., is.na(.), 0))
-
-
-#2012 treatment 
-ttwa_grouped_2012<- ttwa_grouped_pop %>% mutate(treat_2012 = case_when(ttwa_2011 =="SCHIO" & year>2011 ~ 1, year<2012 & ttwa_2011 =="SCHIO"~ 0,ttwa_2011 !="SCHIO"~0))# This creates a treatment variable
-# 2010 treatment 
-ttwa_grouped_2012<- ttwa_grouped_2012 %>% mutate(treat_2010 = case_when (ttwa_2011 =="SCHIO" & year> 2009 ~1, year<2010 & ttwa_2011 =="SCHIO" ~ 0, 
-                                                                        ttwa_2011 !="SCHIO"~0))# This creates a treatment variable
-
-
-ttwa_grouped_2017 <- ttwa_grouped_2012 %>% filter(year<2018)
-
-
-
-
-
-
-
-write_csv(ttwa_grouped_2017, here("data_proc", "ttwa_grouped_final.csv"))
-
-
-# ## Schio Sectorial analysis ---------------------------------------------
-schio_sector_analysis<- fread("/Users/gabrielepiazza/Dropbox/PhD/Synthetic control/Schio data analysis.csv",header= TRUE)
-schio_sector_analysis[schio_sector_analysis =="13 - Industrie tessili"]<- "13 - Textile Production"
-schio_sector_analysis[schio_sector_analysis =="17 - Fabbricazione di carta"]<- "17 - Papermaking"
-schio_sector_analysis[schio_sector_analysis =="25- Prodotti in metallo"] <- "25 - Metal products"
-schio_sector_analysis[schio_sector_analysis =="28 - Macchinari ed apparecchiature"]<- "28 - Machinery & Equipment"
-schio_sector_analysis[schio_sector_analysis =="31 - Fabbricazione di mobili"]<- "31 - Furniture manufacturing"
-schio_sector_analysis[schio_sector_analysis =="33 - Riparazione di macchine"]<- "33 - Machine repair"
-
-schio_sector_analysis<- schio_sector_analysis %>% mutate(zanon_sector =case_when(Code =="28 - Machinery & Equipment" ~ 1,                                                                                                           Code !="28 - Machinery & Equipmente" ~ 0)) 
-
-schio_sector_analysis$zanon_sector<- as.factor(schio_sector_analysis$zanon_sector)
-write_csv(schio_sector_analysis, here("data_proc", "schio_sector_analysis.csv"))
 
 
 

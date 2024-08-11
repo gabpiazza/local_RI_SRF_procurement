@@ -223,10 +223,10 @@ turnover_sector_city<- turnover_sector_city %>% filter(city != "")
 
 turnover_sector_city_supply <- turnover_sector_city %>% filter(two_digit %in% c(10, 13, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 45, 69,72,28))
 turnover_sector_city_supply<- left_join(turnover_sector_city_supply, italy_gdp_deflator_2020)
-turnover_sector_city_supply<- turnover_sector_city_supply %>% mutate(average_turnover_2020 = (average_turnover/prices_2020)*100)
+turnover_sector_city_supply<- turnover_sector_city_supply %>% mutate(average_turnover_2020 = (average_turnover/prices_2020)*100) %>% 
+  replace(is.na(.),0)
 
 turnover_sector_city_supply_2004<- turnover_sector_city_supply %>% filter(year >2003) %>% select(city, year, two_digit, average_turnover_2020)
-turnover_sector_city_supply_2004<- turnover_sector_city_supply_2004 %>% mutate(log_average_turnover_2020 = log(average_turnover_2020))
 cities_list<- turnover_sector_city_supply_2004 %>% select(city) %>% distinct() %>% pull(city)
 cities_list<- unique(cities_list)
 
@@ -235,67 +235,32 @@ cities_list<- unique(cities_list)
 # the website is here https://stats.oecd.org/Index.aspx?DataSetCode=IOTS_2021#
 
 # From long to wide
-turnover_sector_city_supply_2004 <- turnover_sector_city_supply_2004 %>%
-  rename(log_average_turnover = log_average_turnover_2020) %>% 
-  select(city, year, two_digit, log_average_turnover) %>%
-  pivot_wider(names_from = two_digit, values_from = log_average_turnover, names_prefix = "_")
-
-### I need to keep only those that have values for 25
-### 25
-
-turnover_sector_city_supply_2004_25<- turnover_sector_city_supply_2004 %>% 
-  filter(two_digit=='25') %>% 
-  filter(city !="")
+turnover_sector_city_supply_2004_wide <- turnover_sector_city_supply_2004 %>%
+  rename(average_turnover = average_turnover_2020) %>% 
+  select(city, year, two_digit, average_turnover) %>%
+  pivot_wider(names_from = two_digit, values_from = average_turnover, names_prefix = "_") %>% 
+  replace(is.na(.),0)
 
 
-turnover_supply_wide_25<- turnover_sector_city_supply_2004_25 %>% 
-  select(-log_average_turnover_2020) %>% 
-  pivot_wider(names_from = two_digit, values_from = average_turnover_2020) 
-
-
-turnover_supply_wide_25<- turnover_supply_wide_25 %>% drop_na() %>% 
+# Only keep until 2017
+turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_wide %>% drop_na() %>% 
   filter(year<2018)
 
-turnover_supply_wide_number_25<- turnover_supply_wide_25 %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
+
+list_cities_obs_14<- turnover_sector_city_supply_2004_2017_wide %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
   ungroup() %>% 
-  filter(n>13)
+  filter(n>13) %>% 
+  select(city) %>% distinct() %>% 
+  pull(city) %>% unique()
+  
 
-list_cities<- unique(turnover_supply_wide_number_25$city)
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_25 %>% filter(city %in% list_cities)
-
-
-turnover_supply_wide_2004_2017_25$city<- toupper(turnover_supply_wide_2004_2017_25$city)
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_2004_2017_25 %>% 
-  rename(municipality= city)
-
-## 28
-turnover_sector_city_supply_2004_28<- turnover_sector_city_supply_2004 %>% 
-  filter(two_digit=='28') %>% 
-  filter(city !="")
-
-turnover_supply_wide_28<- turnover_sector_city_supply_2004_28 %>%
-  select(-log_average_turnover_2020) %>% 
-  pivot_wider(names_from = two_digit, values_from = average_turnover_2020)  
-
-turnover_supply_wide_28<- turnover_supply_wide_28 %>% drop_na() %>% 
-  filter(year<2018)
-
-turnover_supply_wide_number_28<- turnover_supply_wide_28 %>% group_by(city) %>% count() %>% 
-  ungroup() %>% 
-  filter(n>13)
-
-list_cities<- unique(turnover_supply_wide_number_28$city)
-turnover_supply_wide_2004_2017_28<- turnover_supply_wide_28 %>% filter(city %in% list_cities)
+turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
+  filter(city %in% list_cities_obs_14)
 
 
-turnover_supply_wide_2004_2017_28$city<- toupper(turnover_supply_wide_2004_2017_28$city)
+
+# 3. Save the data --------------------------------------------------------
+
+write.csv(turnover_sector_city_supply_2004_2017_wide, paste0(data_proc_dir, "turnover/", "turnover_sector_2004_2017_wide.csv"))
 
 
-## Write the data ----------------------------------------------------------
-
-write.csv(turnover_supply_wide_2004_2017_25, here("data_proc", "turnover_25_2004_17.csv"))
-write.csv(turnover_supply_wide_2004_2017_28, here("data_proc", "turnover_28_2004_17.csv"))
-
-turnover_supply_wide_2004_2017_25<- read_csv(here("data_proc", "turnover_25_2004_17.csv"))
-turnover_supply_wide_2004_2017_25<- turnover_supply_wide_2004_2017_25 %>% 
-  select(-'...1')

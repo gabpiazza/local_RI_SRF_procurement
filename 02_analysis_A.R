@@ -145,12 +145,9 @@ out_manufacturing_shift_2012_covariates.kbal <- tjbal(data = mid_size_northern_m
                                                       X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                       index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
-####2.213 Save the results -------------------------------------------------------------
-
-saveRDS(out_manufacturing_shift_2012_covariates.kbal,file = paste0(results_dir,"output/", "out_manufacturing_2012_mun.rds"))# 
 
 
-####2.214 Table weights -------------------------------------------------------------
+####2.213 Table weights -------------------------------------------------------------
 
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>%  arrange(municipality)
 #mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
@@ -171,8 +168,10 @@ weights_manufact<- as.data.frame(weights)
 top_10_manufact_mun <- slice_max(weights_manufact,order_by = V1, n=10) %>% rename("TBM weights" = V1)
 top_10_manufact_mun_list <- row.names(top_10_manufact_mun)
 top_10_manufact_mun_list<- str_to_title(top_10_manufact_mun_list)
+####2.214 Save the results -------------------------------------------------------------
 
-
+saveRDS(out_manufacturing_shift_2012_covariates.kbal,file = paste0(results_dir,"output/", "out_manufacturing_2012_mun.rds"))# 
+write_csv(top_10_manufact_mun_list, paste0(results_dir, "output/", "top_10_mun_weights.csv"))
 
 ####2.215 Placebo -------------------------------------------------------------
 #####A. Setting up-------------------------------------------------------------
@@ -269,12 +268,30 @@ out_manufacturing_lma_shift_2012.kbal <- tjbal(data = lma_2012, Y = "log_manufac
                                                      X.avg.time = list(c(2004:2011), c(2011),c(2011), c(2011)),
                                                      index = c("ttwa_2011","year"), demean = TRUE,estimator = "meanfirst")
 
-saveRDS(out_manufacturing_lma_shift_2012.kbal,file = here("results","output", "out_manufacturing_2012_lma.rds"))# 
 
+
+ttwa_names<-as.matrix(unique(lma_2012$ttwa_2011))
+ttwa_names<- ttwa_names[-176]
+ttwa_names<-as.matrix(ttwa_names)
+weights_manufact_ttwa<-out_manufacturing_lma_shift_2012.kbal$weights.co
+weights_manufact_ttwa<-as.matrix(weights_manufact_ttwa)
+rownames(weights_manufact_ttwa)<-ttwa_names
+
+weights_manufact_ttwa <- as.matrix(weights_manufact_ttwa[ order(row.names(weights_manufact_ttwa)), ])
+SCHIO <- 0
+weights_manufact_ttwa<-rbind(SCHIO,weights_manufact_ttwa);weights_manufact_ttwa
+weights_manufact_ttwa<- as.data.frame(weights_manufact_ttwa)
+top_10_manufact_ttwa <- slice_max(weights_manufact_ttwa,order_by = V1, n=10) %>% rename("TBM weights" = V1)
+
+
+####2.222 Save the results ----------------------------------------------------------
+
+saveRDS(out_manufacturing_lma_shift_2012.kbal,file = paste9(results_dir,"output/", "out_manufacturing_2012_lma.rds"))# 
+write_csv(top_10_manufact_ttwa, paste0(results_dir, "output/", "top_10_manufact_ttwa.csv"))
 
 #lma_2012<- lma_2012 %>% select(-'...1')
 
-####2.222 Placebo ----------------------------------------------------------
+####2.223 Placebo ----------------------------------------------------------
 #####A. Set up ----------------------------------------------------------
 id <- rep(1:216, each = 14)
 lma_2012<- lma_2012 %>% 

@@ -71,7 +71,12 @@ northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipaliti
 northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_muncipalities_bordering.csv"))
 lma_2012<- read_csv(paste0(data_proc_dir, "SLL/", "ttwa_grouped_final.csv"))
 turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover", "turnover_sector_2004_2017_wide.csv"))
-##### Impact on linked industries ---------------------------------------
+
+
+# 2. Analysis -------------------------------------------------------------
+
+## 2.1 Linked industries -------------------------------------------------------------
+### 2.11 Estimate the effect  -------------------------------------------------------------
 
 mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% 
   mutate(log_turnover_25 = log(`25`+0.000001))
@@ -89,11 +94,14 @@ out_manufacturing_shift_2012_orbis_25_cov.kbal <- tjbal(data = mid_size_northern
                                                         X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011)),
                                                         index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
-saveRDS(out_manufacturing_shift_2012_orbis_25_cov.kbal,file = here("Analysis","results","output", "out_manufacturing_orbis_25.rds"))
+### 2.12 Save the results  -------------------------------------------------------------
+
+saveRDS(out_manufacturing_shift_2012_orbis_25_cov.kbal,file = paste0(results_dir,"output/", "out_manufacturing_orbis_25.rds"))
 
 
+### 2.13 Placebo  -------------------------------------------------------------
 
-##### Linked industries placebo effect -----------------------------------------------------
+##### A. Setting up -----------------------------------------------------
 set.seed(123456)
 y<-14
 max<-1288
@@ -124,6 +132,9 @@ i <- 1
 numCores <- detectCores()
 registerDoParallel(numCores)
 
+
+##### B. Estimate the placebo effect -----------------------------------------------------
+
 results_orbis_25<- foreach(k= 1:n ) %dopar% {
   manufacturing_placebo_25 <- tjbal(data = mid_size_orbis_m, "log_turnover_25", D =   paste("treat_", k, sep = "" ), Y.match.time = c(2004:2012),
                                     X = c("average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011"),
@@ -143,9 +154,8 @@ colnames(results_orbis_25) <- unique(mid_size_orbis_m$municipality)
 storegaps1_orbis_25<- results_orbis_25[,-76]
 storegaps_orbis_25 <- cbind(SCHIO,storegaps1_orbis_25)
 
-##### Now I create the RMSE function and calculate this for the pre and post treatment period
+##### C. RMSE function  -----------------------------------------------------
 
-rmse <- function(y){sqrt(mean(y^2))}
 preloss_orbis_mun <- apply(storegaps_orbis_25[1:9,],2,rmse)
 
 postloss_orbis_mun <- apply(storegaps_orbis_25[10:14,],2,rmse)
@@ -154,23 +164,27 @@ check_2012_covariates_orbis_25$rank <- rank(-check_2012_covariates_orbis_25$`pos
 mun_names <- names(postloss_orbis_mun)
 
 check_2012_covariates_orbis_25<- cbind(mun_names, check_2012_covariates_orbis_25)
+
+##### D. Save the placebo results -----------------------------------------------------
+
 write.csv(check_2012_covariates_orbis_25,file = here("results","output","out_placebo_orbis_25.csv"))
 
 
 
-#### Effect on unconnected sectors ---------------------------------------
+## 2.2 Tradable sector  -------------------------------------------------------------
 
-
-##### Tradable sector ----------------------------------------------------
-
+### 2.21 Estimate the effect  -------------------------------------------------------------
 
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   mutate(log_tradable = log(finance + business_activities + electricity_gas_water))
+
+
 out_tradable_mun_2012_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
                                                X = c("log_manufacturing", "log_average_employee_income","log_non_tradable", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
                                                X.avg.time = list(c(2004:2012),c(2004:2012), c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
+### 2.22 Save the result  -------------------------------------------------------------
 
 saveRDS(out_tradable_mun_2012_covariates.kbal,file = here("Analysis","results","output", "out_tradable_mun.rds"))# 
 
@@ -179,8 +193,9 @@ saveRDS(out_tradable_mun_2012_covariates.kbal,file = here("Analysis","results","
 #save(output_tradable_mun,file = here("results","output", "out_tradable_mun.RData"))# 
 
 
-##### Placebo test -------------------------------------------------------
+### 2.23 Placebo  -------------------------------------------------------------
 
+##### A. Setting up -----------------------------------------------------
 
 y<-14
 max<-3514
@@ -213,6 +228,8 @@ rownames(storegaps_tradable_mun) <- 1:14
 i <- 1
 numCores <- detectCores()
 registerDoParallel(numCores)
+
+##### B. Estimate the placebo effect -----------------------------------------------------
 
 results_mun_tradable<- foreach(k= 1:n ) %dopar% { 
   tradable_placebo_mun<- tjbal(data = mid_size_m, "log_tradable", D = paste("treat_", k, sep = "" ), Y.match.time = c(2004:2012),
@@ -268,9 +285,8 @@ storegaps1_tradable_2017_mun<- storegaps_tradable_2017_mun[,-116]
 storegaps_tradable_2017_mun <- cbind(SCHIO,storegaps1_tradable_2017_mun)
 
 
-##### RMSE
+##### C. RMSE function  -----------------------------------------------------
 
-rmse <- function(y){sqrt(mean(y^2))}
 preloss_tradable_mun<- apply(storegaps_tradable_2017_mun[1:9,],2,rmse)
 postloss_tradable_mun <- apply(storegaps_tradable_2017_mun[10:14,],2,rmse)
 
@@ -285,10 +301,14 @@ schio_tradable_MSPE<- schio_tradable_MSPE %>% mutate(RMSPE  = postloss_tradable_
 schio_tradable_MSPE$rank<-rank(-schio_tradable_MSPE$RMSPE)
 
 output_tradable_placebo<- capture.output(out_tradable_placebo.kbal)
-save(output_tradable_placebo,file = here("results","output", "out_tradable_placebo.RData"))# 
+
+##### D. Save the placebo results -----------------------------------------------------
+
+save(output_tradable_placebo,file = paste0(results_dir,"output/", "out_tradable_placebo.RData"))# 
 
 
-# #### Non-tradable -------------------------------------------------------
+## 2.3 Non-tradable sector  -------------------------------------------------------------
+### 2.31 Estimate the effect -------------------------------------------------------------
 
 
 out_non_tradable_mun_2012_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_non_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
@@ -296,11 +316,13 @@ out_non_tradable_mun_2012_covariates.kbal <- tjbal(data = mid_size_northern_muni
                                                    X.avg.time = list(c(2004:2012),c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                    index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
+### 2.32 Save the results -------------------------------------------------------------
 
 saveRDS(out_non_tradable_mun_2012_covariates.kbal,file = here("results","output", "out_non_tradable_mun.rds"))
 
+### 2.33 Placebo effects -------------------------------------------------------------
+##### A. Setting up -----------------------------------------------------
 
-# #### Placebo test -------------------------------------------------------
 y<-14
 max<-1484
 n<-(max/y)
@@ -332,6 +354,7 @@ registerDoParallel(numCores)
 
 
 
+##### B. Estimate the placebo effect -----------------------------------------------------
 
 results_mun_non_tradable <- foreach(k=1:n) %dopar% {
   non_tradable_placebo_mun <- tjbal(
@@ -372,9 +395,8 @@ storegaps1_non_tradable_2017_mun<- storegaps_non_tradable_2017_mun[,-88]
 storegaps_non_tradable_2017_mun <- cbind(SCHIO,storegaps1_non_tradable_2017_mun)
 
 
-##### RMSE
+##### C. RMSE function -----------------------------------------------------
 
-rmse <- function(y){sqrt(mean(y^2))}
 preloss_non_tradable_mun<- apply(storegaps_non_tradable_2017_mun[1:9,],2,rmse)
 postloss_non_tradable_mun <- apply(storegaps_non_tradable_2017_mun[10:14,],2,rmse)
 
@@ -387,5 +409,8 @@ check_2017_covariates_non_tradable_mun<- cbind(mun_names, check_2017_covariates_
 schio_non_tradable_MSPE<- cbind.data.frame(municipalities_names, preloss_non_tradable_mun, postloss_non_tradable_mun)
 schio_non_tradable_MSPE<- schio_non_tradable_MSPE %>% mutate(RMSPE  = postloss_non_tradable_mun/preloss_non_tradable_mun)
 schio_non_tradable_MSPE$rank<-rank(-schio_non_tradable_MSPE$RMSPE)
-write.csv(schio_non_tradable_MSPE,file = here("results","output","out_placebo_non_tradable.csv"))
+
+##### D. Save the placebo results -----------------------------------------------------
+
+write.csv(schio_non_tradable_MSPE,file = paste0(results_dir,"output/","out_placebo_non_tradable.csv"))
 

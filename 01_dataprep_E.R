@@ -3,7 +3,7 @@
 ##Script name: 01_dataprep_E
 ##
 ##Purpose of script: Preparing the data for the paper "Where the God Particles touches the ground - The local economic impact of RI procurement " 
-## This creates the northern municipalities 
+## This is for the secotiral analysis
 ##Author: Gabriele Piazza
 ##
 ##Date Created: 2023-02-20

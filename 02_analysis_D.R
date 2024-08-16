@@ -195,7 +195,6 @@ beep()
 ###2.31 Setting up  ---------------------------------------------------------
 
 spillover_manufacturing <- print(out_northern_manufacturing_spillover_2012.kbal)
-spillover_manufacturing<- as.data.frame(out_northern_manufacturing_spillover_2012.kbal)
 spillover_tradable<- print(out_northern_tradable_spillover_2012.kbal)
 spillover_non_tradable<- print(out_northern_non_tradable_spillover_2012.kbal)
 bordering_manufacturing<- print(out_bordering_manufacturing_spillover_2012.kbal)

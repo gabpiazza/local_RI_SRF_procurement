@@ -17,14 +17,37 @@
 ##   
 ##
 
-# Load libraries ----------------------------------------------------------
-library(here)
-library(xtable)
-library(stringi)
-here()
-# Load data ---------------------------------------------------------------
+# 1. Setting up -----------------------------------------------------------
+##1.1 Install/Load packages ---------------------------------------------------
+require(devtools)
+set.seed(123456)
+need <- c(
+  "panelView",
+  "Synth",
+  "foreach",
+  "tidyverse",
+  "here",
+  "tjbal",
+  "doParallel",
+  "tidyverse",
+  "fixest",
+  "progress",
+  "beepr",
+  "logger",
+  "SCtools",
+  "xtable"
+)
 
-manufacturing_mun_2012<- readRDS(here("results", "output", "out_manufacturing_2012_mun.rds"))
+have <- need %in% rownames(installed.packages()) # checks packages you have
+if(any(!have)) install.packages(need[!have]) # install missing packages
+invisible(lapply(need, library, character.only=T)) # load needed packages
+
+options(scipen = 999)
+# 1.2 Load data ---------------------------------------------------------------
+twfe_manufacturing_2012<- readRDS(paste0(results_dir,"output/", "twfe_manufacturing_2012.rds"))
+twfe_manufacturing_dynamic<-readRDS(paste0(results_dir,"output/", "twfe_manufacturing_dynamic.rds"))
+manufacturing_mun_2012<- readRDS(paste0(results_dir, "output/", "out_manufacturing_2012_mun.rds"))
+
 synth_out_man<- readRDS(here("Analysis", "results","output", "synth_out_manufacturing.rds"))
 prep_out_synth<- readRDS(here("Analysis","results", "output", "synth_out_manufacturing.rds"))
 manufact_spillover<- readRDS(here("Analysis","results", "output", "out_manufacturing_spillover.rds"))
@@ -33,13 +56,17 @@ manufact_bordering <- readRDS(here("Analysis","results", "output", "out_manufact
 non_tradable_bordering<- readRDS(here("Analysis","results", "output", "out_non_tradable_bordering.rds"))
 mid_size_northern_municipalities<- read_csv(here("data_proc", "mid_size_northern_municipalities.csv")) %>% select(-'...1') # for main analysis
 # Table 1 -----------------------------------------------------------------
-# This is saved in the folder as txt
+output_twfe_2012 <- capture.output(summary(twfe_manufacturing_2012))
+writeLines(output_twfe_2012, paste0(results_dir,"tables/","twfe_manufacturing_2012_output.txt"))
+
+output_twfe_dynamic <- capture.output(summary(twfe_manufacturing_dynamic))
+writeLines(output_twfe_dynamic, paste0(results_dir,"tables/","twfe_manufacturing_dynamic_output.txt"))
 
 # Table 2 -----------------------------------------------------------------
 weights<-manufacturing_mun_2012$weights.co
 weights<-as.matrix(weights)
 municipalities<-as.matrix(unique(mid_size_northern_municipalities$municipality))
-municipalities<- municipalities[-88]
+municipalities<- municipalities[-213]
 rownames(weights)<-municipalities
 
 weights <- as.matrix(weights[ order(row.names(weights)), ])

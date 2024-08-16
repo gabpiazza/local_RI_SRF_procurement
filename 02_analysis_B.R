@@ -178,7 +178,7 @@ write.csv(check_2012_covariates_orbis_25,file = here("results","output","out_pla
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   mutate(log_tradable = log(finance + business_activities + electricity_gas_water))
 
-id <- rep(1:251, each = 14)
+id <- rep(106, each = 14)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   arrange(municipality)
 mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
@@ -202,96 +202,67 @@ saveRDS(out_tradable_mun_2012_covariates.kbal,file = paste0(results_dir,"output/
 ##### A. Setting up -----------------------------------------------------
 
 ## I have to include the balance table here
-# create a matrix that assign the treatment to the units in the donot pool
-y<-14 # number of years
-max<-3514
-n<-(max/y)
-t <-10 # treatment time
-M <-matrix(0, nrow = max, ncol = n)
+# create a matrix that assigns the treatment to the units in the donor pool
+y <- 14 # number of years
+max <- 106 * 14
+n <- (max / y)
+t <- 10 # treatment time
+M <- matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)# number of municipalities
-my.names<-paste(prefix, suffix, sep = "")
-colnames(M)<-my.names
-for(col in 1:n){
-  idRow = (t + y*(col-1)):(y*col)
+suffix <- c(1:106) # number of municipalities
+my.names <- paste(prefix, suffix, sep = "")
+colnames(M) <- my.names
+
+for (col in 1:n) {
+  idRow = (t + y * (col - 1)):(y * col)
   M[idRow, col] <- 1
 }
-mid_size_m<-cbind(mid_size_northern_municipalities, M) 
 
-#mid_size_northern_municipalities_17_id<- mid_size_northern_municipalities_17_id %>% arrange(id)
-SCHIO<- out_tradable_mun_2012_covariates.kbal$att
+mid_size_m <- cbind(mid_size_northern_municipalities, M)
+
+SCHIO <- out_tradable_mun_2012_covariates.kbal$att
 
 # loop across control units
-storegaps_tradable_mun<-
+storegaps_tradable_mun <- 
   matrix(NA,
          length(1:y),
-         length(unique(mid_size_northern_municipalities$id))
+         length(unique(mid_size_m$id))
   )
 rownames(storegaps_tradable_mun) <- 1:14
 
 i <- 1
-numCores <- detectCores()
-registerDoParallel(numCores)
+numCores <- detectCores() # not necessary 
+registerDoParallel(numCores) # not necessary
 
-##### B. Estimate the placebo effect -----------------------------------------------------
+##### B. Estimate for all the other units in the donor pool -------------------------------------------------------------
 
-results_mun_tradable<- foreach(k= 1:n ) %dopar% { 
-  tradable_placebo_mun<- tjbal(data = mid_size_m, "log_tradable", D = paste("treat_", k, sep = "" ), Y.match.time = c(2004:2012),
-                               X = c("log_manufacturing", "average_employee_income", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
-                               X.avg.time = list(c(2004:2012),c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
-                               index = c("municipality","year"), demean = T, estimator = "meanfirst")
+results_tradable_mun_12 <- foreach(k = 1:n) %dopar% {
+  tradable_placebo_mun <- tjbal(data = mid_size_m, "log_tradable", D = paste("treat_", k, sep = ""), 
+                                Y.match.time = c(2004:2012),
+                                X = c("log_manufacturing", "average_employee_income", "pop_2011", 
+                                      "pop_density_2011", "high_skilled_share", "pop_2001_2011", 
+                                      "emploment_rate_2011"),
+                                X.avg.time = list(c(2004:2012), c(2004:2012), c(2011), c(2011), 
+                                                  c(2011), c(2011), c(2011)),
+                                index = c("municipality", "year"), demean = TRUE, 
+                                estimator = "meanfirst")
   
-  
-  storegaps_tradable_mun[,i] <- 
-    i <- i + 1
-  tradable_placebo_mun$att
-}
-
-results_mun_tradable <- foreach(k=1:n) %dopar% {
-  tradable_placebo_mun <- tjbal(
-    data = mid_size_m, 
-    "log_tradable", 
-    D = paste("treat_", k, sep = "" ), 
-    Y.match.time = c(2004:2012),
-    X = c(
-      "log_manufacturing", 
-      "average_employee_income", 
-      "pop_2011", 
-      "pop_density_2011", 
-      "high_skilled_share",
-      "pop_2001_2011", 
-      "emploment_rate_2011"
-    ),
-    X.avg.time = list(c(2004:2012),c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
-    index = c("municipality","year"), 
-    demean = T, 
-    estimator = "meanfirst"
-  )
-  
-  storegaps_tradable_mun[,i] <- tradable_placebo_mun$att
+  storegaps_tradable_mun[, i] <- tradable_placebo_mun$att
   i <- i + 1
-  
   tradable_placebo_mun$att
-}
+} # close loop over control units
 
-
-
-
-# close loop over control units
-
+results_tradable_mun_12 <- as.data.frame(do.call(cbind, results_tradable_mun_12))
 beep()
-results_mun_tradable<- as.data.frame(do.call(cbind, results_mun_tradable))
+colnames(results_tradable_mun_12)<- unique(mid_size_m$municipality)
+storegaps1_tradable_mun<- results_tradable_mun_12[,-88]# exclude the treated unit 
+storegaps_tradable_mun <- cbind(SCHIO,storegaps1_tradable_mun) # attach the initial result from the main estimation 
 
-colnames(results_mun_tradable)<- unique(mid_size_m$municipality)
-colnames(storegaps_tradable_mun) <- unique(mid_size_m$municipality) 
-storegaps_tradable_2017_mun<- results_mun_tradable
-storegaps1_tradable_2017_mun<- storegaps_tradable_2017_mun[,-116]
-storegaps_tradable_2017_mun <- cbind(SCHIO,storegaps1_tradable_2017_mun)
+#####C. RMSE function and calculate this for the pre and post treatment period-------------------------------------------------------------
 
-##### C. RMSE function  -----------------------------------------------------
 
-preloss_tradable_mun<- apply(storegaps_tradable_2017_mun[1:9,],2,rmse)
-postloss_tradable_mun <- apply(storegaps_tradable_2017_mun[10:14,],2,rmse)
+preloss_tradable_mun<- apply(storegaps_tradable_mun[1:9,],2,rmse)
+postloss_tradable_mun <- apply(storegaps_tradable_mun[10:14,],2,rmse)
 
 check_2017_covariates_tradable_mun <- as.data.frame(postloss_tradable_mun/preloss_tradable_mun)
 check_2017_covariates_tradable_mun$rank <- rank(-check_2017_covariates_tradable_mun$`postloss_tradable_mun/preloss_tradable_mun`)
@@ -303,7 +274,7 @@ schio_tradable_MSPE<- cbind.data.frame(municipalities_names, preloss_tradable_mu
 schio_tradable_MSPE<- schio_tradable_MSPE %>% mutate(RMSPE  = postloss_tradable_mun/preloss_tradable_mun)
 schio_tradable_MSPE$rank<-rank(-schio_tradable_MSPE$RMSPE)
 
-output_tradable_placebo<- capture.output(results_mun_tradable)
+output_tradable_placebo<- capture.output(results_tradable_mun_12)
 
 ##### D. Save the placebo results -----------------------------------------------------
 
@@ -326,20 +297,24 @@ saveRDS(out_non_tradable_mun_2012_covariates.kbal,file = paste0(results_dir,"out
 ### 2.33 Placebo effects -------------------------------------------------------------
 ##### A. Setting up -----------------------------------------------------
 
-y<-14
-max<-3514
-n<-(max/y)
-t <-10
-M <-matrix(0, nrow = max, ncol = n)
+## I have to include the balance table here
+# create a matrix that assigns the treatment to the units in the donor pool
+y <- 14 # number of years
+max <- 106 * 14
+n <- (max / y)
+t <- 10 # treatment time
+M <- matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)
-my.names<-paste(prefix, suffix, sep = "")
-colnames(M)<-my.names
-for(col in 1:n){
-  idRow = (t + y*(col-1)):(y*col)
+suffix <- c(1:106) # number of municipalities
+my.names <- paste(prefix, suffix, sep = "")
+colnames(M) <- my.names
+
+for (col in 1:n) {
+  idRow = (t + y * (col - 1)):(y * col)
   M[idRow, col] <- 1
 }
-mid_size_m<-cbind(mid_size_northern_municipalities, M) 
+
+mid_size_m <- cbind(mid_size_northern_municipalities, M)
 
 SCHIO<- out_non_tradable_mun_2012_covariates.kbal$att
 
@@ -394,7 +369,7 @@ results_mun_non_tradable<- as.data.frame(do.call(cbind, results_mun_non_tradable
 
 colnames(results_mun_non_tradable)<- unique(mid_size_m$municipality)
 storegaps_non_tradable_2017_mun<- results_mun_non_tradable
-storegaps1_non_tradable_2017_mun<- storegaps_non_tradable_2017_mun[,-213]
+storegaps1_non_tradable_2017_mun<- storegaps_non_tradable_2017_mun[,-88]
 storegaps_non_tradable_2017_mun <- cbind(SCHIO,storegaps1_non_tradable_2017_mun)
 
 

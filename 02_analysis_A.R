@@ -127,7 +127,7 @@ writeLines(output_twfe_dynamic, paste0(results_dir,"tables/","twfe_manufacturing
 
 ####2.211 Set up -------------------------------------------------------------
 
-id <- rep(1:251, each = 14)
+id <- rep(1:106, each = 14)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   arrange(municipality)
 mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
@@ -155,7 +155,7 @@ mid_size_northern_municipalities<- mid_size_northern_municipalities %>%  arrange
 
 
 municipalities<-as.matrix(unique(mid_size_northern_municipalities$municipality))
-municipalities<- municipalities[-213]
+municipalities<- municipalities[-88]
 municipalities<-as.matrix(municipalities)
 weights<-out_manufacturing_shift_2012_covariates.kbal$weights.co
 weights<-as.matrix(weights)
@@ -179,12 +179,12 @@ write_csv(top_10_manufact_mun, paste0(results_dir, "output/", "top_10_mun_weight
 ## I have to include the balance table here
 # create a matrix that assign the treatment to the units in the donot pool
 y<-14 # number of years
-max<-3514
+max<-106*14
 n<-(max/y)
 t <-10 # treatment time
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)# number of municipalities
+suffix <- c(1:106)# number of municipalities
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -227,7 +227,7 @@ beep()
 
 
 colnames(results_manufact_mun_12) <- unique(mid_size_m$municipality) 
-storegaps1_manufacturing_2012_covariates<- results_manufact_mun_12[,-213]# exclude the treated unit 
+storegaps1_manufacturing_2012_covariates<- results_manufact_mun_12[,-88]# exclude the treated unit 
 storegaps_manufacturing_2012_covariates <- cbind(SCHIO,storegaps1_manufacturing_2012_covariates) # attach the initial result from the main estimation 
 
 #####C. RMSE function and calculate this for the pre and post treatment period-------------------------------------------------------------
@@ -362,6 +362,56 @@ check_2012_covariates_lma_manufacturing<- cbind(lma_names, check_2012_covariates
 
 write.csv(check_2012_covariates_lma_manufacturing,file = paste0(results_dir,"output/","out_placebo_lma_manufact.csv"))
 
+###2.23 Synthetic control municipalities----------------------------------------------------------
+
+  id <- rep(1:106, each = 14)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
+  arrange(municipality)
+mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
+
+municipalities_list <- mid_size_northern_municipalities %>% select(municipality) %>% distinct() %>% pull(municipality)
+id <- 1:106
+municipalities_id <- cbind(municipalities_list, id)
+municipalities_id<- as.data.frame(municipalities_id)
+municipalities_id$id<-as.numeric(municipalities_id$id)
+colnames(municipalities_id)<- c("municipality", "id")
+
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
+  select(-id) %>% left_join(municipalities_id)
+mid_size_northern_municipalities<- as.data.frame(mid_size_northern_municipalities)
+
+dataprep_out_manufacturing <- dataprep(
+  foo = mid_size_northern_municipalities,
+  predictors = c("average_employee_income"),
+  predictors.op = "mean",
+  time.predictors.prior = 2004:2012,
+  special.predictors = list(
+    list("pop_2011",2011 , "mean"),
+    list("pop_2001_2011", 2011, "mean"),
+    list("pop_density_2011", 2011, "mean"),
+    list("young_pop_degree_share", 2011, "mean"),
+    list("emploment_rate_2011", 2011, "mean"),
+    list("high_skilled_share", 2011, "mean")), 
+  dependent = "log_manufacturing",
+  unit.variable = "id",
+  unit.names.variable = "municipality",
+  time.variable = "year",
+  treatment.identifier = 88,
+  controls.identifier = c(1:87, 89:106),
+  time.optimize.ssr = 2004:2012,
+  time.plot = 2004:2017
+)
+
+
+synth_out_manufacturing <- synth(data.prep.obj = dataprep_out_manufacturing, Sigf.ipop =3,optimxmethod = "All")
+saveRDS(synth_out_manufacturing ,file = paste0(results_dir,"output/", "synth_out_manufacturing.rds"))
+saveRDS(dataprep_out_manufacturing, file = paste0(results_dir, "output/", "prep_out_manufacturing.rds"))
+synth.tables_manufacturing <- synth.tab(dataprep.res =dataprep_out_manufacturing, 
+                                        synth.res = synth_out_manufacturing)#create table with all the results 
+
+balance_table_manufacturing <- synth.tables_manufacturing$tab.pred 
+placebo_manufacturing <- generate_placebos(dataprep_out_manufacturing, synth_out_manufacturing, Sigf.ipop = 2, strategy ="multiprocess")
+mspe.plot(placebo_manufacturing , discard.extreme = TRUE, mspe.limit = 10, plot.hist = TRUE)+geom_histogram(bins=30)
 
 
 
@@ -1134,8 +1184,14 @@ plot_grid(fig_manufact_berg, fig_placebo_mun_bergischer)
 
 
 # synthetic control -------------------------------------------------------
+
+id <- rep(1:251, each = 14)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
+  arrange(municipality)
+mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
+
 municipalities_list <- mid_size_northern_municipalities %>% select(municipality) %>% distinct() %>% pull(municipality)
-id <- 1:106
+id <- 1:251
 municipalities_id <- cbind(municipalities_list, id)
 municipalities_id<- as.data.frame(municipalities_id)
 municipalities_id$id<-as.numeric(municipalities_id$id)
@@ -1161,16 +1217,16 @@ dataprep_out_manufacturing <- dataprep(
   unit.variable = "id",
   unit.names.variable = "municipality",
   time.variable = "year",
-  treatment.identifier = 67,
-  controls.identifier = c(1:66, 68:106),
+  treatment.identifier = 213,
+  controls.identifier = c(1:212, 214:251),
   time.optimize.ssr = 2004:2012,
   time.plot = 2004:2017
 )
 
 
 synth_out_manufacturing <- synth(data.prep.obj = dataprep_out_manufacturing, Sigf.ipop =3,optimxmethod = "All")
-saveRDS(synth_out_manufacturing ,file = here("results","output", "synth_out_manufacturing.rds"))
-saveRDS(dataprep_out_manufacturing, file = here("results", "output", "prep_out_manufacturing.rds"))
+saveRDS(synth_out_manufacturing ,file = paste0(results_dir,"output/", "synth_out_manufacturing.rds"))
+saveRDS(dataprep_out_manufacturing, file = paste0(results_dir, "output/", "prep_out_manufacturing.rds"))
 synth.tables_manufacturing <- synth.tab(dataprep.res =dataprep_out_manufacturing, 
                                         synth.res = synth_out_manufacturing)#create table with all the results 
 

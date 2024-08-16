@@ -211,6 +211,7 @@ schio<- addetti_north %>% filter(municipality=="SCHIO") # This is not necessary
 counting_obs <- addetti_north %>% group_by(municipality) %>% tally ()
 addetti_north<- left_join(addetti_north, counting_obs)
 addetti_north <- addetti_north %>% filter(n>13)
+addetti_north<- addetti_north %>% filter(!is.na(region))
 
 
 ##2.3 Census -------------------------------------------------------------

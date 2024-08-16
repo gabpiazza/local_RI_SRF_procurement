@@ -68,7 +68,7 @@ rmse <- function(y){sqrt(mean(y^2))}
 # 3. Saving the data ------------------------------------------------------
 siab_wide_2004_HQtreated<- readRDS(paste0(data_proc_dir, "German_data/", "siab_wide_2004_HQtreated.rds"))
 siab_wide_2004_twotreated<- readRDS(paste0(data_proc_dir, "German_data/", "siab_wide_2004_twotreated.rds"))
-siab_wide_2004_dortmund<-readRDSrds(paste0(data_proc_dir, "German_data/", "siab_wide_2004_dortmund.rds"))
+siab_wide_2004_dortmund<-readRDS(paste0(data_proc_dir, "German_data/", "siab_wide_2004_dortmund.rds"))
 
 
 
@@ -102,13 +102,13 @@ fig_manufact_berg<- fig_manufact_berg+ggtitle("Panel a: Trajectories in Manufact
 ####2.121 Setting up ------------------------------------------------------------
 
 
-y<-14
-max<-4438
+y<-13
+max<-317*13
 n<-(max/y)
-id<-rep(c(1:n), each=14)
+id<-rep(c(1:n), each=13)
 siab_wide_2004_HQtreated<- siab_wide_2004_HQtreated %>% arrange(district_region)
 siab_wide_2004_HQtreated_id<- cbind(id, siab_wide_2004_HQtreated) 
-t <-10
+t <-9
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
 suffix <- c(1:317)
@@ -129,7 +129,7 @@ storegaps_manufact_3_HQ<-
          length(1:y),
          length(unique(siab_wide_HQ_m$id))
   )
-rownames(storegaps_manufact_3_HQ) <- 1:14
+rownames(storegaps_manufact_3_HQ) <- 1:13
 
 i <- 1
 numCores <- detectCores()

@@ -82,7 +82,7 @@ top_10_manufact_ttwa<- read_csv(paste0(results_dir, "output/", "top_10_manufact_
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% mutate(treat_2008 = case_when(municipality =="SCHIO" & year>2008 ~ 1, year<2009 & municipality =="SCHIO"~ 0,
                                                                                                       municipality!="SCHIO"~0))# This creates a treatment variable
 
-id <- rep(1:251, each = 14)
+id <- rep(1:106, each = 14)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   arrange(municipality)
 mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
@@ -103,14 +103,14 @@ saveRDS(out_manufacturing_2008_covariates.kbal,file = paste0(results_dir,"output
 
 
 y<-14
-max<-251*14
+max<-106*14
 n<-(max/y)
 id<-rep(c(1:n), each=14)
 mid_size_northern_municipalities <- mid_size_northern_municipalities %>% arrange(municipality, year)
 t <-6
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)
+suffix <- c(1:106)
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -155,7 +155,7 @@ results_mun_manufact_2008<- as.data.frame(do.call(cbind, results_mun_manufact_20
 
 colnames(results_mun_manufact_2008)<- unique(mid_size_m$municipality)
 storegaps_manufact_2008_mun<- results_mun_manufact_2008
-storegaps1_manufact_2008<- storegaps_manufact_2008_mun[,-213]
+storegaps1_manufact_2008<- storegaps_manufact_2008_mun[,-88]
 storegaps_manufact_2008_mun <- cbind(SCHIO,storegaps1_manufact_2008)
 year<- c(2004:2017)
 spaghetti_data_2008<- as.data.frame(storegaps_manufact_2008_mun)
@@ -234,14 +234,14 @@ saveRDS(out_manufacturing_2010_covariates.kbal,file = paste0(results_dir,"output
 #### A. Setting up  -------------------------------------------------------------
 
 y<-14
-max<-14*251
+max<-14*106
 n<-(max/y)
 id<-rep(c(1:n), each=14)
 mid_size_northern_municipalities <- mid_size_northern_municipalities %>% arrange(municipality, year)
 t <-8
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)
+suffix <- c(1:106)
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -282,7 +282,7 @@ results_mun_manufact_2010<- as.data.frame(do.call(cbind, results_mun_manufact_20
 
 colnames(results_mun_manufact_2010)<- unique(mid_size_m$municipality)
 storegaps_manufact_2010_mun<- results_mun_manufact_2010
-storegaps1_manufact_2010<- storegaps_manufact_2010_mun[,-213]
+storegaps1_manufact_2010<- storegaps_manufact_2010_mun[,-88]
 storegaps_manufact_2010_mun <- cbind(SCHIO,storegaps1_manufact_2010)
 
 
@@ -344,7 +344,7 @@ colnames(storegapsL_manufacturing) <- controls
 
 weightL_manufacturing <- 
   matrix(NA,
-         length(1:249),
+         length(1:104),
          10)
 colnames(weightL_manufacturing) <- controls
 

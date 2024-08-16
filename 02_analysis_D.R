@@ -115,7 +115,7 @@ out_northern_tradable_spillover_2012.kbal <- tjbal(data = northern_municipalitie
 
 
 beep()
-out
+
 saveRDS(out_northern_tradable_spillover_2012.kbal ,file = paste0(results_dir, "output/", "out_tradable_spillover.rds"))
 out_northern_tradable_spillover_2012.kbal<-outputout_tradable_spillover
 ####2.123 Non-tradable   ---------------------------------------------------------
@@ -171,7 +171,7 @@ beep()
 out_bordering_tradable_spillover_2012.kbal <- tjbal(data = northern_municipalities_bordering, Y = "log_tradable", D = "treat_neighbours", Y.match.time = c(2004:2012),
                                                     X = c("log_manufacturing","pop_2011", "pop_density_2011", "high_skilled_share","young_pop_degree_share","pop_2001_2011", "emploment_rate_2011"),
                                                     X.avg.time = list(c(2004:2011),c(2011), c(2011), c(2011), c(2011), c(2011), c(2011)),
-                                                    index = c("municipality","year"), demean = T, estimator = "meanfirst")
+                                                    index = c("municipality","year"), demean = T, estimator = "meanfirst",vce="jack")
 beep()
 
 

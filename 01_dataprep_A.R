@@ -269,7 +269,7 @@ sll<- clean_names(sll)
 sll<- sll %>% rename (city = comune_2011) %>% dplyr::select(-pop_2011) 
 sll$city <- stri_trans_general(str= sll$city, id="Latin-ASCII") # this gets rid of all the accents
 sll_region_lookup <- sll %>% select(city, den_sll_2011) # select only the variables of interest
-write_csv(sll_region_lookup, here("data_proc", "sll_region_lookup.csv"))
+write_csv(sll_region_lookup, paste0(data_proc_dir,"SLL/" ,"sll_region_lookup.csv"))
 
 
 ##2.6 North Panel  ---------------------------------------------------------
@@ -294,10 +294,10 @@ northern_municipalities<- left_join(northern_municipalities, cern_suppliers, by 
 northern_municipalities<- northern_municipalities %>% drop_na(pop_2011, emploment_rate_2011)
 list_full_cities<- unique(northern_municipalities$municipality)
 northern_municipalities_full<- northern_municipalities %>% filter(municipality %in% list_full_cities)
-write.csv(northern_municipalities_full, )
+write.csv(northern_municipalities_full,paste0(data_proc_dir, "municipalities/", "northern_municipalities_full.csv"))
 # Get all the data together
 
-northern_municipalities <- left_join(addetti_north_full, census_2011, by=c("municipality")) %>% rename(year = year.x)
+northern_municipalities <- left_join(addetti_north, census_2011, by=c("municipality")) %>% rename(year = year.x)
 northern_municipalities<- left_join(northern_municipalities, cern_suppliers, by= c("municipality", "year"))
 northern_municipalities<- northern_municipalities %>% drop_na(pop_2011)
 northern_municipalities <- northern_municipalities %>% drop_na (emploment_rate_2011)
@@ -324,7 +324,7 @@ write.csv(mid_size_northern_municipalities,paste0(data_proc_dir,"municipalities/
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% select(-V1)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% drop_na(manufacturing, business_activities, education, health_social, 
                                                                                 pop_2011, pop_2001_2011, electricity_gas_water, high_skilled_share, pop_density_2011,
-                                                                                young_pop_degree_share) %>% select(-V1)
+                                                                                young_pop_degree_share) 
 mid_size_northern_municipalities[is.na(mid_size_northern_municipalities)]<-0
 
 

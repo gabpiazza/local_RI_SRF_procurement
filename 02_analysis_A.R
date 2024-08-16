@@ -68,9 +68,9 @@ rmse <- function(y){sqrt(mean(y^2))}
 
 mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipalities/", "mid_size_northern_municipalities.csv"))
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_spillover.csv"))
-northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_muncipalities_bordering.csv"))
+northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_bordering.csv"))
 lma_2012<- read_csv(paste0(data_proc_dir, "SLL/", "ttwa_grouped_final.csv"))
-turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover", "turnover_sector_2004_2017_wide.csv"))
+# turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover", "turnover_sector_2004_2017_wide.csv"))
 
 
 # analysis_log <- logger()
@@ -127,7 +127,7 @@ writeLines(output_twfe_dynamic, paste0(results_dir,"tables/","twfe_manufacturing
 
 ####2.211 Set up -------------------------------------------------------------
 
-id <- rep(1:106, each = 14)
+id <- rep(1:251, each = 14)
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   arrange(municipality)
 mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
@@ -155,7 +155,7 @@ mid_size_northern_municipalities<- mid_size_northern_municipalities %>%  arrange
 
 
 municipalities<-as.matrix(unique(mid_size_northern_municipalities$municipality))
-municipalities<- municipalities[-88]
+municipalities<- municipalities[-213]
 municipalities<-as.matrix(municipalities)
 weights<-out_manufacturing_shift_2012_covariates.kbal$weights.co
 weights<-as.matrix(weights)
@@ -171,7 +171,7 @@ top_10_manufact_mun_list<- str_to_title(top_10_manufact_mun_list)
 ####2.214 Save the results -------------------------------------------------------------
 
 saveRDS(out_manufacturing_shift_2012_covariates.kbal,file = paste0(results_dir,"output/", "out_manufacturing_2012_mun.rds"))# 
-write_csv(top_10_manufact_mun_list, paste0(results_dir, "output/", "top_10_mun_weights.csv"))
+write_csv(top_10_manufact_mun, paste0(results_dir, "output/", "top_10_mun_weights.csv"))
 
 ####2.215 Placebo -------------------------------------------------------------
 #####A. Setting up-------------------------------------------------------------
@@ -179,12 +179,12 @@ write_csv(top_10_manufact_mun_list, paste0(results_dir, "output/", "top_10_mun_w
 ## I have to include the balance table here
 # create a matrix that assign the treatment to the units in the donot pool
 y<-14 # number of years
-max<-1484 
+max<-3514
 n<-(max/y)
 t <-10 # treatment time
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:106)# number of municipalities
+suffix <- c(1:251)# number of municipalities
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -227,7 +227,7 @@ beep()
 
 
 colnames(results_manufact_mun_12) <- unique(mid_size_m$municipality) 
-storegaps1_manufacturing_2012_covariates<- results_manufact_mun_12[,-88]# exclude the treated unit 
+storegaps1_manufacturing_2012_covariates<- results_manufact_mun_12[,-213]# exclude the treated unit 
 storegaps_manufacturing_2012_covariates <- cbind(SCHIO,storegaps1_manufacturing_2012_covariates) # attach the initial result from the main estimation 
 
 #####C. RMSE function and calculate this for the pre and post treatment period-------------------------------------------------------------
@@ -286,7 +286,7 @@ top_10_manufact_ttwa <- slice_max(weights_manufact_ttwa,order_by = V1, n=10) %>%
 
 ####2.222 Save the results ----------------------------------------------------------
 
-saveRDS(out_manufacturing_lma_shift_2012.kbal,file = paste9(results_dir,"output/", "out_manufacturing_2012_lma.rds"))# 
+saveRDS(out_manufacturing_lma_shift_2012.kbal,file = paste0(results_dir,"output/", "out_manufacturing_2012_lma.rds"))# 
 write_csv(top_10_manufact_ttwa, paste0(results_dir, "output/", "top_10_manufact_ttwa.csv"))
 
 #lma_2012<- lma_2012 %>% select(-'...1')
@@ -913,7 +913,7 @@ out_northern_non_tradable_spillover_2012.kbal <- tjbal(data = northern_municipal
                                                        index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
 
-saveRDS(out_northern_non_tradable_spillover_2012.kbal ,file = here("Analysis", "results","output", "out_non_tradable_spillover.rds"))
+saveRDS(out_northern_non_tradable_spillover_2012.kbal ,file = paste0(results_dir,"output/", "out_non_tradable_spillover.rds"))
 
 beep()
 

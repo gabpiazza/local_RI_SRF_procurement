@@ -58,7 +58,7 @@ readsubfolder <- function (f){attempt <- fread(f)}
 ## 1.4 Loading data------------------------------------------------
 
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir,"municipalities/", "northern_municipalities_all.csv")) %>% select(-n)
-sll<- read_csv(paste0(data_proc_dir, "SLL/", "sll_region_lookup.csv"))
+sll_2011 <- fread(paste0(data_proc_dir, "SLL/","sll_2011.csv"))
 italy<- st_read(paste0(data_raw_dir,"LAU_RG_01M_2020_4326.shp/", "LAU_RG_01M_2020_4326.shp"))
 
 # 2. Preparing the data  --------------------------------------------------
@@ -81,15 +81,15 @@ cern_cities <- unique(northern_cern$municipality)
 northern_municipalities_spillover<- northern_municipalities_spillover %>% filter(year<2018)
 
 ###2.12 SLL  ----------------------------------------------
-sll<- clean_names(sll)
-sll$city <- stringi::stri_trans_general(str= sll$city, id="Latin-ASCII") # this gets rid of all the accents
+sll<- clean_names(sll_2011)
+sll$city <- stringi::stri_trans_general(str= sll$comune_2011, id="Latin-ASCII") # this gets rid of all the accents
 sll_region_lookup <- sll %>% select(city, den_sll_2011) # select only the variables 
 sll_region_lookup<- sll_region_lookup %>% drop_na()
-sll_region_lookup <-sll_region_lookup %>% unique()
+
 sll_region_lookup<- sll_region_lookup %>% rename(ttwa_2011= den_sll_2011)
 
 sll_region_lookup<- sll_region_lookup %>% select(ttwa_2011,city)
-sll_region_lookup<- sll_region_lookup %>% unique()
+sll_region_lookup<- sll_region_lookup %>% drop_na()
 schio_sll <- sll_region_lookup %>% filter(ttwa_2011== "SCHIO")
 
 counting_obs <- northern_municipalities_spillover %>% group_by(municipality) %>% tally ()
@@ -139,18 +139,17 @@ northern_municipalities_spillover<- northern_municipalities_spillover %>%
 
 #I first remove all the municipalities that have received a CERN procurement contract
 
-northern_municipalities_spillover_no_cern<-northern_municipalities_spillover %>% 
-  filter(municipality %notin% cern_cities)
+
 
 
 ###  Assign treatment to 2012 ----------------------------------------
 
 #2012 treatment 
-northern_municipalities_spillover_no_cern<- northern_municipalities_spillover_no_cern %>% mutate(treat_2012 = case_when(ttwa_2011 =="SCHIO" & year>2012 ~ 1, year<2013 & ttwa_2011 =="SCHIO"~ 0,
+northern_municipalities_spillover<- northern_municipalities_spillover %>% mutate(treat_2012 = case_when(ttwa_2011 =="SCHIO" & year>2012 ~ 1, year<2013 & ttwa_2011 =="SCHIO"~ 0,
                                                                                                                         municipality!="SCHIO"~0))# This creates a treatment variable
 
 
-northern_municipalities_spillover_no_cern <- northern_municipalities_spillover_no_cern %>% filter(municipality !="SCHIO")  %>% 
+northern_municipalities_spillover <- northern_municipalities_spillover %>% filter(municipality !="SCHIO")  %>% 
   distinct()
 
 
@@ -160,12 +159,12 @@ northern_municipalities_spillover_no_cern <- northern_municipalities_spillover_n
 
 # Create the dataset for the neighbouring  municipalities as treated 
 
-northern_municipalities_2012_neighbours <- northern_municipalities_spillover_no_cern %>% mutate(treat_neighbours = case_when(municipality %in% schio_neighbours & year>2012 ~ 1, year<2013 & municipality %in% schio_neighbours~ 0,
+northern_municipalities_2012_neighbours <- northern_municipalities_spillover %>% mutate(treat_neighbours = case_when(municipality %in% schio_neighbours & year>2012 ~ 1, year<2013 & municipality %in% schio_neighbours~ 0,
                                                                                                                              municipality %notin% schio_neighbours~0))
 northern_municipalities_2012_neighbours<- northern_municipalities_2012_neighbours %>% filter(municipality!="SCHIO")
 
 
 # 3. Save files -----------------------------------------------------------
 
-write.csv(northern_municipalities_spillover_no_cern, paste0(data_proc_dir,"municipalities/", "northern_municipalities_spillover.csv"))
+write.csv(northern_municipalities_spillover, paste0(data_proc_dir,"municipalities/", "northern_municipalities_spillover.csv"))
 write_csv(northern_municipalities_2012_neighbours, paste0(data_proc_dir,"municipalities/", "northern_municipalities_bordering.csv"))

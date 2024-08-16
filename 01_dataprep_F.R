@@ -58,8 +58,8 @@ readsubfolder <- function (f){attempt <- fread(f)}
 ## 1.4 Loading data------------------------------------------------
 
 
-siab_reg_ind_yr<- read_csv(paste0(data_raw_dir, "German+data/", "siab_reg_ind_year.csv"))
-districts_lookup <- read_csv("/Users/gabrielepiazza/Dropbox/PhD/Schio_local_impact/Data/German Data/Kreis_lookup.csv")
+siab_reg_ind_yr<- read_csv(paste0(data_raw_dir, "German_data/", "siab_reg_ind_year.csv"))
+districts_lookup <- read_csv(paste0(data_raw_dir, "German_data/","Kreis_lookup.csv"))
 
 
 
@@ -100,7 +100,7 @@ siab_wide_2004<- siab_wide_2004 %>% filter(district_region %notin% check_distric
 
 
 # manufacturing 3 is the sector that includes 
-manufacturing_3_observations<- siab_wide_2004_check %>% filter(year>2003) %>% select(district_region, manufact_3) %>% 
+manufacturing_3_observations<- siab_wide_2004 %>% filter(year>2003) %>% select(district_region, manufact_3) %>% 
   filter(!is.na(manufact_3)) %>% 
   group_by(district_region) %>% 
   count()
@@ -142,7 +142,7 @@ siab_wide_2004_dortmund<- siab_wide_2004 %>%
                                 district_region !="Dortmund, City"~0))
 
 
-I use the industry information from this website https://doku.iab.de/fdz/reporte/2019/DR_04-19_EN.pdf.The industry in which Research Instruments operates is manufacturing 3
+#I use the industry information from this website https://doku.iab.de/fdz/reporte/2019/DR_04-19_EN.pdf.The industry in which Research Instruments operates is manufacturing 3
 
 
 

@@ -68,7 +68,7 @@ rmse <- function(y){sqrt(mean(y^2))}
 
 mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipalities/", "mid_size_northern_municipalities.csv"))
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_spillover.csv"))
-northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_muncipalities_bordering.csv"))
+northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_bordering.csv"))
 lma_2012<- read_csv(paste0(data_proc_dir, "SLL/", "ttwa_grouped_final.csv"))
 turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover", "turnover_sector_2004_2017_wide.csv"))
 
@@ -178,15 +178,19 @@ write.csv(check_2012_covariates_orbis_25,file = here("results","output","out_pla
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
   mutate(log_tradable = log(finance + business_activities + electricity_gas_water))
 
+id <- rep(1:251, each = 14)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
+  arrange(municipality)
+mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
 
 out_tradable_mun_2012_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
-                                               X = c("log_manufacturing", "log_average_employee_income","log_non_tradable", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
+                                               X = c("log_manufacturing", "average_employee_income","log_non_tradable", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
                                                X.avg.time = list(c(2004:2012),c(2004:2012), c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
 ### 2.22 Save the result  -------------------------------------------------------------
 
-saveRDS(out_tradable_mun_2012_covariates.kbal,file = here("Analysis","results","output", "out_tradable_mun.rds"))# 
+saveRDS(out_tradable_mun_2012_covariates.kbal,file = paste0(results_dir,"output/", "out_tradable_mun.rds"))# 
 
 
 #output_tradable_mun<- capture.output(out_tradable_mun_2012_covariates.kbal)
@@ -197,24 +201,24 @@ saveRDS(out_tradable_mun_2012_covariates.kbal,file = here("Analysis","results","
 
 ##### A. Setting up -----------------------------------------------------
 
-y<-14
+## I have to include the balance table here
+# create a matrix that assign the treatment to the units in the donot pool
+y<-14 # number of years
 max<-3514
 n<-(max/y)
-id<-rep(c(1:n), each=14)
-mid_size_northern_municipalities <- mid_size_northern_municipalities %>% arrange(municipality, year)
-
-t <-10
+t <-10 # treatment time
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:251)
+suffix <- c(1:251)# number of municipalities
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
   idRow = (t + y*(col-1)):(y*col)
   M[idRow, col] <- 1
 }
-#mid_size_northern_municipalities_17_id<- mid_size_northern_municipalities_17_id %>% arrange(id)
 mid_size_m<-cbind(mid_size_northern_municipalities, M) 
+
+#mid_size_northern_municipalities_17_id<- mid_size_northern_municipalities_17_id %>% arrange(id)
 SCHIO<- out_tradable_mun_2012_covariates.kbal$att
 
 # loop across control units
@@ -233,25 +237,25 @@ registerDoParallel(numCores)
 
 results_mun_tradable<- foreach(k= 1:n ) %dopar% { 
   tradable_placebo_mun<- tjbal(data = mid_size_m, "log_tradable", D = paste("treat_", k, sep = "" ), Y.match.time = c(2004:2012),
-                               X = c("log_manufacturing", "log_average_employee_income", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
+                               X = c("log_manufacturing", "average_employee_income", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
                                X.avg.time = list(c(2004:2012),c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                index = c("municipality","year"), demean = T, estimator = "meanfirst")
   
   
   storegaps_tradable_mun[,i] <- 
     i <- i + 1
-  non_tradable_placebo_mun$att
+  tradable_placebo_mun$att
 }
 
-results_mun_non_tradable <- foreach(k=1:n) %dopar% {
-  non_tradable_placebo_mun <- tjbal(
+results_mun_tradable <- foreach(k=1:n) %dopar% {
+  tradable_placebo_mun <- tjbal(
     data = mid_size_m, 
-    "log_non_tradable", 
+    "log_tradable", 
     D = paste("treat_", k, sep = "" ), 
     Y.match.time = c(2004:2012),
     X = c(
       "log_manufacturing", 
-      "log_average_employee_income", 
+      "average_employee_income", 
       "pop_2011", 
       "pop_density_2011", 
       "high_skilled_share",
@@ -264,10 +268,10 @@ results_mun_non_tradable <- foreach(k=1:n) %dopar% {
     estimator = "meanfirst"
   )
   
-  storegaps_non_tradable_mun[,i] <- non_tradable_placebo_mun$att
+  storegaps_tradable_mun[,i] <- tradable_placebo_mun$att
   i <- i + 1
   
-  non_tradable_placebo_mun$att
+  tradable_placebo_mun$att
 }
 
 
@@ -284,7 +288,6 @@ storegaps_tradable_2017_mun<- results_mun_tradable
 storegaps1_tradable_2017_mun<- storegaps_tradable_2017_mun[,-116]
 storegaps_tradable_2017_mun <- cbind(SCHIO,storegaps1_tradable_2017_mun)
 
-
 ##### C. RMSE function  -----------------------------------------------------
 
 preloss_tradable_mun<- apply(storegaps_tradable_2017_mun[1:9,],2,rmse)
@@ -300,7 +303,7 @@ schio_tradable_MSPE<- cbind.data.frame(municipalities_names, preloss_tradable_mu
 schio_tradable_MSPE<- schio_tradable_MSPE %>% mutate(RMSPE  = postloss_tradable_mun/preloss_tradable_mun)
 schio_tradable_MSPE$rank<-rank(-schio_tradable_MSPE$RMSPE)
 
-output_tradable_placebo<- capture.output(out_tradable_placebo.kbal)
+output_tradable_placebo<- capture.output(results_mun_tradable)
 
 ##### D. Save the placebo results -----------------------------------------------------
 
@@ -312,24 +315,24 @@ save(output_tradable_placebo,file = paste0(results_dir,"output/", "out_tradable_
 
 
 out_non_tradable_mun_2012_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_non_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
-                                                   X = c("log_manufacturing", "log_average_employee_income", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
+                                                   X = c("log_manufacturing", "average_employee_income", "pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
                                                    X.avg.time = list(c(2004:2012),c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                    index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
 ### 2.32 Save the results -------------------------------------------------------------
 
-saveRDS(out_non_tradable_mun_2012_covariates.kbal,file = here("results","output", "out_non_tradable_mun.rds"))
+saveRDS(out_non_tradable_mun_2012_covariates.kbal,file = paste0(results_dir,"output/", "out_non_tradable_mun.rds"))
 
 ### 2.33 Placebo effects -------------------------------------------------------------
 ##### A. Setting up -----------------------------------------------------
 
 y<-14
-max<-1484
+max<-3514
 n<-(max/y)
 t <-10
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:106)
+suffix <- c(1:251)
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -364,7 +367,7 @@ results_mun_non_tradable <- foreach(k=1:n) %dopar% {
     Y.match.time = c(2004:2012),
     X = c(
       "log_manufacturing", 
-      "log_average_employee_income", 
+      "average_employee_income", 
       "pop_2011", 
       "pop_density_2011", 
       "high_skilled_share",
@@ -391,7 +394,7 @@ results_mun_non_tradable<- as.data.frame(do.call(cbind, results_mun_non_tradable
 
 colnames(results_mun_non_tradable)<- unique(mid_size_m$municipality)
 storegaps_non_tradable_2017_mun<- results_mun_non_tradable
-storegaps1_non_tradable_2017_mun<- storegaps_non_tradable_2017_mun[,-88]
+storegaps1_non_tradable_2017_mun<- storegaps_non_tradable_2017_mun[,-213]
 storegaps_non_tradable_2017_mun <- cbind(SCHIO,storegaps1_non_tradable_2017_mun)
 
 

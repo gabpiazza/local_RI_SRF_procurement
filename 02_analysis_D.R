@@ -68,11 +68,10 @@ rmse <- function(y){sqrt(mean(y^2))}
 
 mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipalities/", "mid_size_northern_municipalities.csv"))
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_spillover.csv"))
-northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_muncipalities_bordering.csv"))
+northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_bordering.csv"))
 
-# ## Displacement analysis  -----------------------------------------------
 
-# #2. Analysis ------------------------------------------------------------
+# #2. Displacement Analysis ------------------------------------------------------------
 
 ##2.1 Municipalities in the same LMA ---------------------------------------------------------
 ###2.11 Setting up  ---------------------------------------------------------
@@ -104,7 +103,8 @@ out_northern_manufacturing_spillover_2012.kbal <- tjbal(data = northern_municipa
 
 
 
-saveRDS(out_northern_manufacturing_spillover_2012.kbal ,file = here("Analysis", "results","output", "out_manufacturing_spillover.rds"))
+saveRDS(out_northern_manufacturing_spillover_2012.kbal ,file = paste0(results_dir, "output/", "out_manufacturing_spillover.rds"))
+out_northern_manufacturing_spillover_2012.kbal<-outputout_manufacturing_spillover
 ####2.122 Tradable   ---------------------------------------------------------
 
 out_northern_tradable_spillover_2012.kbal <- tjbal(data = northern_municipalities_spillover, Y = "log_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
@@ -115,8 +115,9 @@ out_northern_tradable_spillover_2012.kbal <- tjbal(data = northern_municipalitie
 
 
 beep()
-
-
+out
+saveRDS(out_northern_tradable_spillover_2012.kbal ,file = paste0(results_dir, "output/", "out_tradable_spillover.rds"))
+out_northern_tradable_spillover_2012.kbal<-outputout_tradable_spillover
 ####2.123 Non-tradable   ---------------------------------------------------------
 
 out_northern_non_tradable_spillover_2012.kbal <- tjbal(data = northern_municipalities_spillover, Y = "log_non_tradable", D = "treat_2012", Y.match.time = c(2004:2012),
@@ -125,10 +126,10 @@ out_northern_non_tradable_spillover_2012.kbal <- tjbal(data = northern_municipal
                                                        index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
 beep()
-saveRDS(out_northern_non_tradable_spillover_2012.kbal ,file = here("Analysis", "results","output", "out_non_tradable_spillover.rds"))
+saveRDS(out_northern_non_tradable_spillover_2012.kbal ,file = paste0(results_dir,"output/", "out_non_tradable_spillover.rds"))
 
 ###2.13 Save the results   ---------------------------------------------------------
-saveRDS(out_northern_manufacturing_spillover_2012.kbal ,file = here("Analysis", "results","output", "out_manufacturing_spillover.rds"))
+saveRDS(out_northern_manufacturing_spillover_2012.kbal ,file = paste0(results_dir, "output/", "out_manufacturing_spillover.rds"))
 
 
 ##2.2 Bordering municipalities ---------------------------------------------------------
@@ -185,16 +186,16 @@ out_bordering_non_tradable_spillover_2012.kbal <- tjbal(data = northern_municipa
 beep()
 ###2.23 Save the results  ---------------------------------------------------------
 
+saveRDS(out_bordering_manufacturing_spillover_2012.kbal  ,file = paste0(results_dir,"output/", "out_manufacturing_bordering.rds"))
+saveRDS(out_bordering_tradable_spillover_2012.kbal ,file = paste0(results_dir,"output/", "out_tradable_bordering.rds"))
 saveRDS(out_bordering_non_tradable_spillover_2012.kbal  ,file = paste0(results_dir,"output/", "out_non_tradable_bordering.rds"))
-saveRDS(out_northern_tradable_spillover_2012.kbal ,file = paste0(results_dir,"output/", "out_tradable_spillover.rds"))
-saveRDS(out_bordering_tradable_spillover_2012.kbal  ,file = paste0(results_dir,"output/", "out_tradable_bordering.rds"))
-
+beep()
 
 ##2.3 Putting the data together  ---------------------------------------------------------
 ###2.31 Setting up  ---------------------------------------------------------
 
-
 spillover_manufacturing <- print(out_northern_manufacturing_spillover_2012.kbal)
+spillover_manufacturing<- as.data.frame(out_northern_manufacturing_spillover_2012.kbal)
 spillover_tradable<- print(out_northern_tradable_spillover_2012.kbal)
 spillover_non_tradable<- print(out_northern_non_tradable_spillover_2012.kbal)
 bordering_manufacturing<- print(out_bordering_manufacturing_spillover_2012.kbal)

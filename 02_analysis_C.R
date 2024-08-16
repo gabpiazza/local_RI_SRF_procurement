@@ -68,10 +68,10 @@ rmse <- function(y){sqrt(mean(y^2))}
 
 mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipalities/", "mid_size_northern_municipalities.csv"))
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_spillover.csv"))
-northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_muncipalities_bordering.csv"))
+northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_bordering.csv"))
 lma_2012<- read_csv(paste0(data_proc_dir, "SLL/", "ttwa_grouped_final.csv"))
 top_10_manufact_mun_list<- read_csv(paste0(results_dir, "output/", "top_10_mun_weights.csv"))
-top_10_manufact_ttwa<- read_csv(results_dir, "output/", "top_10_manufact_ttwa.csv"))
+top_10_manufact_ttwa<- read_csv(paste0(results_dir, "output/", "top_10_manufact_ttwa.csv"))
 
 
 # 2. Analysis -------------------------------------------------------------
@@ -81,8 +81,15 @@ top_10_manufact_ttwa<- read_csv(results_dir, "output/", "top_10_manufact_ttwa.cs
 
 mid_size_northern_municipalities<- mid_size_northern_municipalities %>% mutate(treat_2008 = case_when(municipality =="SCHIO" & year>2008 ~ 1, year<2009 & municipality =="SCHIO"~ 0,
                                                                                                       municipality!="SCHIO"~0))# This creates a treatment variable
+
+id <- rep(1:251, each = 14)
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% 
+  arrange(municipality)
+mid_size_northern_municipalities<- cbind(id, mid_size_northern_municipalities)
+
+
 out_manufacturing_2008_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_manufacturing", D = "treat_2008", Y.match.time = c(2004:2008),
-                                                X = c( "log_average_employee_income"),
+                                                X = c( "average_employee_income"),
                                                 X.avg.time = list(c(2004:2008)),
                                                 index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
@@ -96,14 +103,14 @@ saveRDS(out_manufacturing_2008_covariates.kbal,file = paste0(results_dir,"output
 
 
 y<-14
-max<-1484
+max<-251*14
 n<-(max/y)
 id<-rep(c(1:n), each=14)
 mid_size_northern_municipalities <- mid_size_northern_municipalities %>% arrange(municipality, year)
 t <-6
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:106)
+suffix <- c(1:251)
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -130,7 +137,7 @@ registerDoParallel(numCores)
 
 results_mun_manufact_2008<- foreach(k= 1:n ) %dopar% { 
   manufact_placebo_2008_mun<- tjbal(data = mid_size_m, "log_manufacturing", D = paste("treat_", k, sep = "" ), Y.match.time = c(2004:2008),
-                                    X = c( "log_average_employee_income"),
+                                    X = c( "average_employee_income"),
                                     X.avg.time = list(c(2004:2008)),
                                     index = c("municipality","year"), demean = T, estimator = "meanfirst")
   
@@ -148,25 +155,25 @@ results_mun_manufact_2008<- as.data.frame(do.call(cbind, results_mun_manufact_20
 
 colnames(results_mun_manufact_2008)<- unique(mid_size_m$municipality)
 storegaps_manufact_2008_mun<- results_mun_manufact_2008
-storegaps1_manufact_2008<- storegaps_manufact_2008_mun[,-88]
+storegaps1_manufact_2008<- storegaps_manufact_2008_mun[,-213]
 storegaps_manufact_2008_mun <- cbind(SCHIO,storegaps1_manufact_2008)
 year<- c(2004:2017)
 spaghetti_data_2008<- as.data.frame(storegaps_manufact_2008_mun)
 spaghetti_data_2008<- cbind(year, spaghetti_data_2008)
 spaghetti_data_2008_long <- spaghetti_data_2008 %>% pivot_longer(cols = -1, names_to = "City", values_to = "Value") %>%
   rename(Year = year)
-write.csv(spaghetti_data_2008_long,file = paste0(results_dir,"output","spaghetti_data_2008.csv"))
+write.csv(spaghetti_data_2008_long,file = paste0(results_dir,"output/","spaghetti_data_2008.csv"))
 
 # Transform data to long format
 spaghetti_data_long <- spaghetti_data_2008 %>% pivot_longer(cols = -1, names_to = "City", values_to = "Value") %>%
   rename(Year = year)
 year<- c(2004:2017)
-names(data_long)[1] <- "Year"
+names(spaghetti_data_long)[1] <- "Year"
 
 #### D. Spaghetti graph  -------------------------------------------------------------
-ggplot(data_long, aes(x = Year, y = Value, group = City)) +
-  geom_line(data = filter(data_long, City != "SCHIO"), aes(color = "Other Cities"), size = 0.2) + # Set other cities to light grey
-  geom_line(data = filter(data_long, City == "SCHIO"), aes(color = "SCHIO"), size = 1) + # Highlight Schio with a thicker, dark grey line
+ggplot(spaghetti_data_long, aes(x = Year, y = Value, group = City)) +
+  geom_line(data = filter(spaghetti_data_long, City != "SCHIO"), aes(color = "Other Cities"), size = 0.2) + # Set other cities to light grey
+  geom_line(data = filter(spaghetti_data_long, City == "SCHIO"), aes(color = "SCHIO"), size = 1) + # Highlight Schio with a thicker, dark grey line
   geom_vline(xintercept = 2008, color = "grey", linetype = "dashed", size = 0.5) + # Treatment line, thinner
   scale_color_manual(values = c("Schio" = "darkgrey", "Other Cities" = "lightgrey")) + # Define manual colors
   theme_minimal(base_size = 12) + # Use a minimal theme
@@ -195,7 +202,7 @@ schio_manufact_08_MSPE<- schio_manufact_08_MSPE %>% mutate(RMSPE  = postloss_man
 schio_manufact_08_MSPE$rank<-rank(-schio_manufact_08_MSPE$RMSPE)
 #### F. Save the placebo effects  -------------------------------------------------------------
 
-write.csv(schio_manufact_08_MSPE,file = paste0(results_dir,"output","out_placebo_manufact_2008.csv"))
+write.csv(schio_manufact_08_MSPE,file = paste0(results_dir,"output/","out_placebo_manufact_2008.csv"))
 
 
 
@@ -207,7 +214,7 @@ write.csv(schio_manufact_08_MSPE,file = paste0(results_dir,"output","out_placebo
 ### 2.21 Estimate the effect -------------------------------------------------------------
 
 out_manufacturing_2010_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_manufacturing", D = "treat_2010", Y.match.time = c(2004:2010),
-                                                X = c( "log_average_employee_income"),
+                                                X = c( "average_employee_income"),
                                                 X.avg.time = list(c(2004:2010)),
                                                 index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
@@ -220,21 +227,21 @@ plot(out_manufacturing_2010_covariates.kbal, type = "counterfactual", xlab = "Ye
 
 ### 2.22 Save the results -------------------------------------------------------------
 
-saveRDS(out_manufacturing_2010_covariates.kbal,file = paste0(results_dir,"output", "out_manufacturing_2010.rds"))
+saveRDS(out_manufacturing_2010_covariates.kbal,file = paste0(results_dir,"output/", "out_manufacturing_2010.rds"))
 
 ### 2.23 Placebo effects-------------------------------------------------------------
 
 #### A. Setting up  -------------------------------------------------------------
 
 y<-14
-max<-1484
+max<-14*251
 n<-(max/y)
 id<-rep(c(1:n), each=14)
 mid_size_northern_municipalities <- mid_size_northern_municipalities %>% arrange(municipality, year)
 t <-8
 M <-matrix(0, nrow = max, ncol = n)
 prefix <- "treat_"
-suffix <- c(1:106)
+suffix <- c(1:251)
 my.names<-paste(prefix, suffix, sep = "")
 colnames(M)<-my.names
 for(col in 1:n){
@@ -259,7 +266,7 @@ registerDoParallel(numCores)
 
 results_mun_manufact_2010<- foreach(k= 1:n ) %dopar% { 
   manufact_placebo_2010_mun<- tjbal(data = mid_size_m, "log_manufacturing", D = paste("treat_", k, sep = "" ), Y.match.time = c(2004:2010),
-                                    X = c( "log_average_employee_income"),
+                                    X = c( "average_employee_income"),
                                     X.avg.time = list(c(2004:2009)),
                                     index = c("municipality","year"), demean = T, estimator = "meanfirst")
   
@@ -275,7 +282,7 @@ results_mun_manufact_2010<- as.data.frame(do.call(cbind, results_mun_manufact_20
 
 colnames(results_mun_manufact_2010)<- unique(mid_size_m$municipality)
 storegaps_manufact_2010_mun<- results_mun_manufact_2010
-storegaps1_manufact_2010<- storegaps_manufact_2010_mun[,-88]
+storegaps1_manufact_2010<- storegaps_manufact_2010_mun[,-213]
 storegaps_manufact_2010_mun <- cbind(SCHIO,storegaps1_manufact_2010)
 
 
@@ -290,7 +297,7 @@ spaghetti_data_2010<- cbind(year, spaghetti_data_2010)
 spaghetti_data_2010_long <- spaghetti_data_2010 %>%
   pivot_longer(cols = -1, names_to = "City", values_to = "Value") %>%
   rename(Year = year) # Ensure the year column is numeric
-write.csv(spaghetti_data_2010_long, here("results", "output", "spaghetti_data_2010"))
+write.csv(spaghetti_data_2010_long, paste0(results_dir, "output/", "spaghetti_data_2010.csv"))
 
 
 #### D. RMSE function  -------------------------------------------------------------
@@ -310,7 +317,7 @@ schio_manufact_10_MSPE$rank<-rank(-schio_manufact_10_MSPE$RMSPE)
 
 #### E. Save the results  -------------------------------------------------------------
 
-write.csv(schio_manufact_10_MSPE,file = paste0(results_dir,"output","out_placebo_manufact_2010.csv"))
+write.csv(schio_manufact_10_MSPE,file = paste0(results_dir,"output/","out_placebo_manufact_2010.csv"))
 
 
 
@@ -337,7 +344,7 @@ colnames(storegapsL_manufacturing) <- controls
 
 weightL_manufacturing <- 
   matrix(NA,
-         length(1:104),
+         length(1:249),
          10)
 colnames(weightL_manufacturing) <- controls
 
@@ -455,7 +462,7 @@ for(k in 1:10 ){
 
 ###2.43 Save the results -----------------------------------------
 
-saveRDS( out_manufacturing_ttwa_l1o.kbal ,file = here("results","output", "out_manufacturing_l1o_lma.rds"))
+saveRDS(out_manufacturing_ttwa_l1o.kbal ,file = paste0(results_dir,"output/", "out_manufacturing_l1o_lma.rds"))
 
 
 ###2.44 Leave-one-out graph -----------------------------------------

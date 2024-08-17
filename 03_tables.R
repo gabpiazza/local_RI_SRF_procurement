@@ -50,10 +50,10 @@ manufacturing_mun_2012<- readRDS(paste0(results_dir, "output/", "out_manufacturi
 
 synth_out_man<- readRDS(here("Analysis", "results","output", "synth_out_manufacturing.rds"))
 prep_out_synth<- readRDS(here("Analysis","results", "output", "synth_out_manufacturing.rds"))
-manufact_spillover<- readRDS(here("Analysis","results", "output", "out_manufacturing_spillover.rds"))
-non_tradable_spillover<- readRDS(here("Analysis","results", "output", "out_non_tradable_spillover.rds"))
-manufact_bordering <- readRDS(here("Analysis","results", "output", "out_manufacturing_bordering.rds"))
-non_tradable_bordering<- readRDS(here("Analysis","results", "output", "out_non_tradable_bordering.rds"))
+manufact_spillover<- readRDS(paste0(results_dir, "output/", "out_manufacturing_spillover.rds"))
+non_tradable_spillover<- readRDS(paste0(results_dir, "output/",  "out_non_tradable_spillover.rds"))
+manufact_bordering <- readRDS(paste0(results_dir, "output/", "out_manufacturing_bordering.rds"))
+non_tradable_bordering<- readRDS(paste0(results_dir, "output/", "out_non_tradable_bordering.rds"))
 mid_size_northern_municipalities<- read_csv(here("data_proc", "mid_size_northern_municipalities.csv")) %>% select(-'...1') # for main analysis
 # Table 1 -----------------------------------------------------------------
 output_twfe_2012 <- capture.output(summary(twfe_manufacturing_2012))
@@ -66,7 +66,7 @@ writeLines(output_twfe_dynamic, paste0(results_dir,"tables/","twfe_manufacturing
 weights<-manufacturing_mun_2012$weights.co
 weights<-as.matrix(weights)
 municipalities<-as.matrix(unique(mid_size_northern_municipalities$municipality))
-municipalities<- municipalities[-213]
+municipalities<- municipalities[-88]
 rownames(weights)<-municipalities
 
 weights <- as.matrix(weights[ order(row.names(weights)), ])
@@ -85,7 +85,7 @@ table_2 <- xtable(top_10_mun_weights, caption = "Donor weights - Top 10")
 table_2 <- print(table_2, include.rownames = FALSE)
 
 # Save LaTeX table code to a file
-write.table(table_2, here("Analysis","results", "tables", "table_2.tex"), sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+write.table(table_2, paste0(results_dir, "tables/", "table_2.tex"), sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 table_2<- 
 
@@ -124,4 +124,4 @@ table_4 <- xtable(spillover_results, caption = "Displacement effects on neighbou
 table_4 <- print(table_4, include.rownames = FALSE)
 
 # Save LaTeX table code to a file
-write.table(table_4, here("results", "tables", "table_4.tex"), sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)
+write.table(table_4, paste0(results_dir, "tables/", "table_4.tex"), sep = "", row.names = FALSE, col.names = FALSE, quote = FALSE)

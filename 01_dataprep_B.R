@@ -41,6 +41,7 @@ data_proc_dir<- "/Users/gabrielepiazza/Dropbox/PhD/Local_RI_SRF_procurement/Anal
 orbis_dir <- paste0(data_raw_dir, "ORBIS/")
 GDP_deflator_dir <- paste0(data_raw_dir, "GDP_deflator/")
 
+
 ## 1.3 Create functions ---------------------------------------------------
 load_csv <- function(file_path) {
   library(data.table)
@@ -69,8 +70,8 @@ italy_nace <- read_csv(paste0(orbis_dir, "NACE IT.csv"))
 
 ###1.44 Financial data ------------------------------------------------------
 italy_financial<- read_dta(paste0(orbis_dir, "Gabriele IT.dta"))
-
-
+###1.45 municipalities------------------------------------------------------
+mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipalities/", "mid_size_northern_municipalities.csv"))
 # 2. Preparing the data ----------------------------------------------------
 
 ##2.1 Cleaning the datasets ----------------------------------------------------
@@ -95,6 +96,13 @@ italy_nace <- italy_nace %>% select(bvd_id_number, nacerev2primarycodes) %>% fil
 # #it_postcodes<- clean_names(it_postcodes)
 # #it_postcodes<- it_postcodes %>% rename(postcode= cap) %>% select(postcode, comune)
 
+
+###2.14 Municipalities -------------------------------------------------------------
+
+list_municipalities<- mid_size_northern_municipalities %>%
+  select(municipality) %>% 
+  distinct() %>% 
+  pull(municipality)
 ##2.2 Putting the data together ------------------------------------------
 
 #Merging financial data and address
@@ -207,19 +215,19 @@ turnover_sector_city<- it_orbis_2018 %>% group_by(city, two_digit, year) %>%
 turnover_sector_city<- turnover_sector_city %>% filter(city != "")
 
 
-# 10 - Manufacture of food products
-# 13 - Textile products
-# 16 - Manufacture of wood
-# 17 - Manufucture of paper products
-# 19 - Manufacture of coke products
-# 20 - Manufacture of chemical products
-# 21 - Manufacture of pharmaceutical products
-# 22 - Manufacture of rubber products
-# 23 - Manufacture of non-metallic products
-# 24 - Manufacture of basic metal products
-# 25 - Manufacture of fabricated metal products
-# 26 - Manufacture of computer electronic products
-# 27 - Manufacture of electrical equipment
+# 10 - Manufacture of food products 0.011
+# 13 - Textile products 0.008
+# 16 - Manufacture of wood 0.009
+# 17 - Manufucture of paper products 0.018
+# 19 - Manufacture of coke products 0.028
+# 20 - Manufacture of chemical products 0.039
+# 21 - Manufacture of pharmaceutical products 0.004
+# 22 - Manufacture of rubber products 0.045
+# 23 - Manufacture of non-metallic products 0.014
+# 24 - Manufacture of basic metal products 0.154
+# 25 - Manufacture of fabricated metal products 0.214
+# 26 - Manufacture of computer electronic products 0.012
+# 27 - Manufacture of electrical equipment 0.035
 
 turnover_sector_city_supply <- turnover_sector_city %>% filter(two_digit %in% c(10, 13, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 45, 69,72,28))
 turnover_sector_city_supply<- left_join(turnover_sector_city_supply, italy_gdp_deflator_2020)
@@ -256,11 +264,63 @@ list_cities_obs_14<- turnover_sector_city_supply_2004_2017_wide %>% group_by(cit
 
 turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
   filter(city %in% list_cities_obs_14)
+## 2.5 Creating the upstream sector ------------------------------------------------------
 
+# Define the coefficients for each sector
+coefficients <- c(
+  `_10` = 0.011,
+  `_13` = 0.008,
+  `_16` = 0.009,
+  `_17` = 0.018,
+  `_19` = 0.028,
+  `_20` = 0.039,
+  `_21` = 0.004,
+  `_22` = 0.045,
+  `_23` = 0.014,
+  `_24` = 0.154,
+  `_25` = 0.214,
+  `_26` = 0.012,
+  `_27` = 0.035
+)
 
+# Create new columns for each sector's contribution
+for (col_name in names(coefficients)) {
+  if (col_name %in% colnames(turnover_sector_city_supply_2004_2017_wide)) {
+    new_col_name <- paste0(col_name, "_contribution")
+    turnover_sector_city_supply_2004_2017_wide[[new_col_name]] <- turnover_sector_city_supply_2004_2017_wide[[col_name]] * coefficients[col_name]
+  }
+}
+
+# Create a new column 'upstream' that sums all the contribution columns
+turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>%
+  rowwise() %>%
+  mutate(upstream = sum(c_across(ends_with("_contribution"))))
+
+turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>% 
+  filter(upstream!=0)
+list_cities_obs_14<- turnover_sector_city_supply_2004_2017_wide %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
+  ungroup() %>% 
+  filter(n>13) %>% 
+  select(city) %>% distinct() %>% 
+  pull(city) %>% unique()
+
+turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
+  filter(city %in% list_cities_obs_14) 
+turnover_sector_city_supply_2004_2017_wide$city<- toupper(turnover_sector_city_supply_2004_2017_wide$city)
+  
+turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
+  filter(city %in% list_municipalities) 
+
+turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
+  #rename(municipality =city) %>% 
+  select(-'...1')
+
+mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities %>% 
+  left_join(turnover_sector_city_supply_2004_2017_wide) %>% 
+  filter(upstream !=0)
 
 # 3. Save the data --------------------------------------------------------
 
 write.csv(turnover_sector_city_supply_2004_2017_wide, paste0(data_proc_dir, "turnover/", "turnover_sector_2004_2017_wide.csv"))
-
+write.csv(mid_size_northern_municipalities_orbis, paste0(data_proc_dir, "turnover/", "mid_size_northern_municipalities_orbis.csv"))
 

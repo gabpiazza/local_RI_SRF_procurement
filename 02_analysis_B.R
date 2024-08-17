@@ -70,7 +70,7 @@ mid_size_northern_municipalities <- read_csv(paste0(data_proc_dir, "municipaliti
 northern_municipalities_spillover<- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_spillover.csv"))
 northern_municipalities_bordering <- read_csv(paste0(data_proc_dir, "municipalities/", "northern_municipalities_bordering.csv"))
 lma_2012<- read_csv(paste0(data_proc_dir, "SLL/", "ttwa_grouped_final.csv"))
-turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover", "turnover_sector_2004_2017_wide.csv"))
+turnover_sector_city_supply_2004_2017_wide<- read_csv(paste0(data_proc_dir, "turnover/", "turnover_sector_2004_2017_wide.csv"))
 mid_size_northern_municipalities_orbis<- read_csv(paste0(data_proc_dir, "turnover/", "mid_size_northern_municipalities_orbis.csv"))
 
 # 2. Analysis -------------------------------------------------------------
@@ -394,12 +394,12 @@ write.csv(schio_non_tradable_MSPE,file = paste0(results_dir,"output/","out_place
 
 
 
-## 2.4 Upstream sector -------------------------------------------------------------
+## 2.4 Upstream sector total  -------------------------------------------------------------
 ### 2.41 Estimate the effect  -------------------------------------------------------------
 
 mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% 
   select(-id) %>% 
-  mutate(log_upstream = log(upstream))
+  mutate(log_upstream_total = log(upstream_total))
 
 id <- rep(1:95, each = 14)
 mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% 
@@ -409,17 +409,17 @@ mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis 
 
 mid_size_northern_municipalities_orbis$log_average_employee_income<- log(mid_size_northern_municipalities_orbis$average_employee_income)
 mid_size_northern_municipalities_orbis<- as.data.frame(mid_size_northern_municipalities_orbis)
-out_manufacturing_shift_2012_orbis_upstream_cov.kbal <- tjbal(data = mid_size_northern_municipalities_orbis, Y = "log_upstream", D = "treat_2012", Y.match.time = c(2004:2012),
+out_manufacturing_shift_2012_orbis_upstream_cov.kbal <- tjbal(data = mid_size_northern_municipalities_orbis, Y = "log_upstream_total", D = "treat_2012", Y.match.time = c(2004:2012),
                                                         X = c("log_average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011"),
                                                         X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011)),
                                                         index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
-### 2.12 Save the results  -------------------------------------------------------------
+### 2.42 Save the results  -------------------------------------------------------------
 
 saveRDS(out_manufacturing_shift_2012_orbis_upstream_cov.kbal,file = paste0(results_dir,"output/", "out_manufacturing_upstream.rds"))
 
 
-### 2.13 Placebo  -------------------------------------------------------------
+### 2.43 Placebo  -------------------------------------------------------------
 
 ##### A. Setting up -----------------------------------------------------
 set.seed(123456)
@@ -487,5 +487,100 @@ check_2012_covariates_orbis_upstream<- cbind(mun_names, check_2012_covariates_or
 
 ##### D. Save the placebo results -----------------------------------------------------
 
-write.csv(check_2012_covariates_orbis_25,file = here("results","output","out_placebo_orbis_25.csv"))
+write.csv(check_2012_covariates_orbis_upstream,file = paste0(results_dir,"output/","out_placebo_orbis_upstream.csv"))
+
+## 2.5 Upstream sector total  -------------------------------------------------------------
+### 2.51 Estimate the effect  -------------------------------------------------------------
+
+mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% 
+  mutate(log_upstream_domestic = log(upstream_domestic))
+
+id <- rep(1:95, each = 14)
+mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% 
+  arrange(municipality)
+mid_size_northern_municipalities_orbis<- cbind(id, mid_size_northern_municipalities_orbis)
+mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities_orbis %>% select(-'...1',-'...2')
+
+mid_size_northern_municipalities_orbis$log_average_employee_income<- log(mid_size_northern_municipalities_orbis$average_employee_income)
+mid_size_northern_municipalities_orbis<- as.data.frame(mid_size_northern_municipalities_orbis)
+out_manufacturing_shift_2012_orbis_upstream_domestic_cov.kbal <- tjbal(data = mid_size_northern_municipalities_orbis, Y = "log_upstream_domestic", D = "treat_2012", Y.match.time = c(2004:2012),
+                                                              X = c("log_average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011"),
+                                                              X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011)),
+                                                              index = c("municipality","year"), demean = T, estimator = "meanfirst")
+
+### 2.52 Save the results  -------------------------------------------------------------
+
+saveRDS(out_manufacturing_shift_2012_orbis_upstream_domestic_cov.kbal,file = paste0(results_dir,"output/", "out_manufacturing_upstream.rds"))
+
+
+### 2.53 Placebo  -------------------------------------------------------------
+
+##### A. Setting up -----------------------------------------------------
+set.seed(123456)
+y<-14
+max<-14*95
+n<-(max/y)
+t <-10
+M <-matrix(0, nrow = max, ncol = n)
+prefix <- "treat_"
+suffix <- c(1:95)
+my.names<-paste(prefix, suffix, sep = "")
+colnames(M)<-my.names
+for(col in 1:n){
+  idRow = (t + y*(col-1)):(y*col)
+  M[idRow, col] <- 1
+}
+mid_size_orbis_m<-cbind(mid_size_northern_municipalities_orbis, M) 
+
+SCHIO<- out_manufacturing_shift_2012_orbis_upstream_domestic_cov.kbal$att
+
+# loop across control units
+storegaps_orbis_upstream_domestic<- 
+  matrix(NA,
+         length(1:y),
+         length(unique(mid_size_orbis_m$id))
+  )
+rownames(storegaps_orbis_upstream_domestic) <- 1:14
+
+i <- 1
+numCores <- detectCores()
+registerDoParallel(numCores)
+
+
+##### B. Estimate the placebo effect -----------------------------------------------------
+
+results_orbis_upstream_domestic<- foreach(k= 1:n ) %dopar% {
+  manufacturing_placebo_upstream_domestic <- tjbal(data = mid_size_orbis_m, "log_upstream_domestic", D =   paste("treat_", k, sep = "" ), Y.match.time = c(2004:2012),
+                                          X = c("average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011"),
+                                          X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011)),
+                                          index = c("municipality","year"), demean = T, estimator = "meanfirst")
+  
+  storegaps_orbis_upstream_domestic[,i] <- 
+    i <- i + 1
+  manufacturing_placebo_upstream_domestic$att
+  
+} # close loop over control units
+results_orbis_upstream_domestic<- as.data.frame(do.call(cbind, results_orbis_upstream_domestic))
+beep()
+colnames(results_orbis_upstream_domestic) <- unique(mid_size_orbis_m$municipality) 
+
+
+storegaps1_orbis_upstream_domestic<- results_orbis_upstream_domestic[,-79]
+storegaps_orbis_upstream_domestic <- cbind(SCHIO,storegaps1_orbis_upstream_domestic)
+
+##### C. RMSE function  -----------------------------------------------------
+
+preloss_orbis_domestic_mun <- apply(storegaps_orbis_upstream_domestic[1:9,],2,rmse)
+
+postloss_orbis_domestic_mun <- apply(storegaps_orbis_upstream_domestic[10:14,],2,rmse)
+check_2012_covariates_orbis_upstream_domestic <- as.data.frame(postloss_orbis_domestic_mun/preloss_orbis_domestic_mun)
+check_2012_covariates_orbis_upstream_domestic$rank <- rank(-check_2012_covariates_orbis_upstream_domestic$`postloss_orbis_domestic_mun/preloss_orbis_domestic_mun`)
+mun_names <- names(postloss_orbis_domestic_mun)
+
+check_2012_covariates_orbis_upstream_domestic<- cbind(mun_names, check_2012_covariates_orbis_upstream_domestic)
+
+##### D. Save the placebo results -----------------------------------------------------
+
+write.csv(check_2012_covariates_orbis_upstream_domestic,file = paste0(results_dir,"output/","out_placebo_orbis_upstream_domestic.csv"))
+
 

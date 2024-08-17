@@ -214,7 +214,8 @@ turnover_sector_city<- it_orbis_2018 %>% group_by(city, two_digit, year) %>%
   summarize(average_turnover= mean(max_turnover))
 turnover_sector_city<- turnover_sector_city %>% filter(city != "")
 
-
+#Leontief Inverse matrix (total)
+#https://data-explorer.oecd.org/vis?tenant=archive&df[ds]=DisseminateArchiveDMZ&df[id]=DF_IOTS_2021&df[ag]=OECD&dq=LEONTFT.ITA..D28&lom=LASTNPERIODS&lo=5&to[TIME_PERIOD]=false&vw=tb
 # 10 - Manufacture of food products 0.011
 # 13 - Textile products 0.008
 # 16 - Manufacture of wood 0.009
@@ -228,6 +229,24 @@ turnover_sector_city<- turnover_sector_city %>% filter(city != "")
 # 25 - Manufacture of fabricated metal products 0.214
 # 26 - Manufacture of computer electronic products 0.012
 # 27 - Manufacture of electrical equipment 0.035
+
+#Leontief Inverse matrix (domestic)
+#https://data-explorer.oecd.org/vis?tenant=archive&df[ds]=DisseminateArchiveDMZ&df[id]=DF_IOTS_2021&df[ag]=OECD&dq=LEONTFD.ITA..D28&lom=LASTNPERIODS&lo=5&to[TIME_PERIOD]=false&vw=tb
+# 10 - Manufacture of food products 0.005
+# 13 - Textile products 0.004
+# 16 - Manufacture of wood 0.005
+# 17 - Manufucture of paper products 0.01
+# 19 - Manufacture of coke products 0.013
+# 20 - Manufacture of chemical products 0.012
+# 21 - Manufacture of pharmaceutical products 0.001
+# 22 - Manufacture of rubber products 0.027
+# 23 - Manufacture of non-metallic products 0.008
+# 24 - Manufacture of basic metal products 0.063
+# 25 - Manufacture of fabricated metal products 0.167
+# 26 - Manufacture of computer electronic products 0.005
+# 27 - Manufacture of electrical equipment 0.018
+
+
 
 turnover_sector_city_supply <- turnover_sector_city %>% filter(two_digit %in% c(10, 13, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 45, 69,72,28))
 turnover_sector_city_supply<- left_join(turnover_sector_city_supply, italy_gdp_deflator_2020)
@@ -267,7 +286,7 @@ turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_20
 ## 2.5 Creating the upstream sector ------------------------------------------------------
 
 # Define the coefficients for each sector
-coefficients <- c(
+coefficients_total <- c(
   `_10` = 0.011,
   `_13` = 0.008,
   `_16` = 0.009,
@@ -283,21 +302,46 @@ coefficients <- c(
   `_27` = 0.035
 )
 
-# Create new columns for each sector's contribution
-for (col_name in names(coefficients)) {
+coefficients_domestic <- c(
+  `_10` = 0.005,
+  `_13` = 0.004,
+  `_16` = 0.005,
+  `_17` = 0.01,
+  `_19` = 0.013,
+  `_20` = 0.012,
+  `_21` = 0.001,
+  `_22` = 0.027,
+  `_23` = 0.008,
+  `_24` = 0.063,
+  `_25` = 0.167,
+  `_26` = 0.005,
+  `_27` = 0.018
+)
+
+# Create new columns for each sector's contribution - total
+for (col_name in names(coefficients_total)) {
   if (col_name %in% colnames(turnover_sector_city_supply_2004_2017_wide)) {
-    new_col_name <- paste0(col_name, "_contribution")
+    new_col_name <- paste0(col_name, "_total_contribution")
     turnover_sector_city_supply_2004_2017_wide[[new_col_name]] <- turnover_sector_city_supply_2004_2017_wide[[col_name]] * coefficients[col_name]
+  }
+}
+
+# Create new columns for each sector's contribution - domestic
+for (col_name in names(coefficients_domestic)) {
+  if (col_name %in% colnames(turnover_sector_city_supply_2004_2017_wide)) {
+    new_col_name <- paste0(col_name, "_domestic_contribution")
+    turnover_sector_city_supply_2004_2017_wide[[new_col_name]] <- turnover_sector_city_supply_2004_2017_wide[[col_name]] * coefficients_domestic[col_name]
   }
 }
 
 # Create a new column 'upstream' that sums all the contribution columns
 turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>%
   rowwise() %>%
-  mutate(upstream = sum(c_across(ends_with("_contribution"))))
+  mutate(upstream_total = sum(c_across(ends_with("_total_contribution")), na.rm = TRUE),
+         upstream_domestic = sum(c_across(ends_with("_domestic_contribution")), na.rm = TRUE))
 
 turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>% 
-  filter(upstream!=0)
+  filter(upstream_total!=0 & upstream_domestic !=0)
 list_cities_obs_14<- turnover_sector_city_supply_2004_2017_wide %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
   ungroup() %>% 
   filter(n>13) %>% 
@@ -312,12 +356,12 @@ turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_20
   filter(city %in% list_municipalities) 
 
 turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
-  #rename(municipality =city) %>% 
-  select(-'...1')
+  rename(municipality =city) %>% 
+ select(-'...1')
 
 mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities %>% 
   left_join(turnover_sector_city_supply_2004_2017_wide) %>% 
-  filter(upstream !=0)
+  filter(upstream_domestic !=0)
 
 # 3. Save the data --------------------------------------------------------
 

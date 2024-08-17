@@ -318,6 +318,22 @@ coefficients_domestic <- c(
   `_27` = 0.018
 )
 
+coefficients_domestic_as_perc <- c(
+  `_10` = 0.01479,
+  `_13` = 0.01183,
+  `_16` = 0.01479,
+  `_17` = 0.02959,
+  `_19` = 0.03846,
+  `_20` = 0.03550,
+  `_21` = 0.00296,
+  `_22` = 0.07988,
+  `_23` = 0.02367,
+  `_24` = 0.18639,
+  `_25` = 0.49408,
+  `_26` = 0.01479,
+  `_27` = 0.05325
+)
+
 # Create new columns for each sector's contribution - total
 for (col_name in names(coefficients_total)) {
   if (col_name %in% colnames(turnover_sector_city_supply_2004_2017_wide)) {
@@ -334,14 +350,25 @@ for (col_name in names(coefficients_domestic)) {
   }
 }
 
+
+# Create new columns for each sector's contribution - domestic as percentage
+for (col_name in names(coefficients_domestic_as_perc)) {
+  if (col_name %in% colnames(turnover_sector_city_supply_2004_2017_wide)) {
+    new_col_name <- paste0(col_name, "_domestic_perc_contribution")
+    turnover_sector_city_supply_2004_2017_wide[[new_col_name]] <- turnover_sector_city_supply_2004_2017_wide[[col_name]] * coefficients_domestic_as_perc[col_name]
+  }
+}
+
+
 # Create a new column 'upstream' that sums all the contribution columns
 turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>%
   rowwise() %>%
   mutate(upstream_total = sum(c_across(ends_with("_total_contribution")), na.rm = TRUE),
-         upstream_domestic = sum(c_across(ends_with("_domestic_contribution")), na.rm = TRUE))
+         upstream_domestic = sum(c_across(ends_with("_domestic_contribution")), na.rm = TRUE),
+         upstream_domestic_perc = sum(c_across(ends_with("_domestic_perc_contribution")), na.rm = TRUE))
 
 turnover_sector_city_supply_2004_2017_wide <- turnover_sector_city_supply_2004_2017_wide %>% 
-  filter(upstream_total!=0 & upstream_domestic !=0)
+  filter(upstream_total!=0 & upstream_domestic !=0, upstream_domestic_perc!=0)
 list_cities_obs_14<- turnover_sector_city_supply_2004_2017_wide %>% group_by(city) %>% count() %>% # this is just to check that I have enough observations for the city
   ungroup() %>% 
   filter(n>13) %>% 
@@ -357,7 +384,7 @@ turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_20
 
 turnover_sector_city_supply_2004_2017_wide<- turnover_sector_city_supply_2004_2017_wide %>% 
   rename(municipality =city) %>% 
- select(-'...1')
+# select(-'...1')
 
 mid_size_northern_municipalities_orbis<- mid_size_northern_municipalities %>% 
   left_join(turnover_sector_city_supply_2004_2017_wide) %>% 

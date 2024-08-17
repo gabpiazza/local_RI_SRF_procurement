@@ -138,10 +138,10 @@ panelview(log_manufacturing ~ average_employee_income + pop_2011, pop_density_20
           xlab = "Year", ylab = "municipality")
 
 ####2.212 Run the analysis -------------------------------------------------------------
-
+mid_size_northern_municipalities<- mid_size_northern_municipalities %>% mutate(log_average_employee_income = log(average_employee_income))
 mid_size_northern_municipalities <- mid_size_northern_municipalities %>% mutate(log_average_employee_income = log(average_employee_income))
 out_manufacturing_shift_2012_covariates.kbal <- tjbal(data = mid_size_northern_municipalities, Y = "log_manufacturing", D = "treat_2012", Y.match.time = c(2004:2012),
-                                                      X = c( "average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
+                                                      X = c("log_average_employee_income","pop_2011", "pop_density_2011", "high_skilled_share","pop_2001_2011", "emploment_rate_2011"),
                                                       X.avg.time = list(c(2004:2012),c(2011), c(2011), c(2011), c(2011), c(2011)),
                                                       index = c("municipality","year"), demean = T, estimator = "meanfirst")
 
